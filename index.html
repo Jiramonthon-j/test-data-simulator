@@ -480,9 +480,9 @@
 
                     <div class="space-y-2">
                         <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                            วาง DDL Script (CREATE TABLE...)
+                            วาง Script โครงสร้างข้อมูล (CREATE TABLE...)
                         </label>
-                        <textarea id="inputDdlScript" rows="3" placeholder="ตัวอย่าง: CREATE TABLE users (id INT, name VARCHAR(50));" class="w-full text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none"></textarea>
+                        <textarea id="inputStructureScript" rows="3" placeholder="ตัวอย่าง: CREATE TABLE users (id INT, name VARCHAR(50));" class="w-full text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none"></textarea>
                     </div>
 
                     <!-- อัปโหลดรูปภาพ Schema -->
@@ -494,6 +494,39 @@
                         <div id="schemaImagePreviewContainer" class="hidden relative border border-slate-200 dark:border-slate-600 rounded-lg p-2 bg-slate-50 dark:bg-slate-900">
                             <img id="schemaImagePreview" src="" alt="Schema Preview" class="max-h-40 mx-auto rounded-lg object-contain">
                             <button onclick="removeSchemaImage()" class="absolute top-1.5 right-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full p-1 text-[10px] w-5 h-5 flex items-center justify-center transition-all">✕</button>
+                        </div>
+                    </div>
+
+                    <!-- อ้างอิงข้อมูลจากชุดที่เคย Commit (ตัวเลือกเพิ่มเติม) -->
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="inputUseReferenceData" onchange="toggleReferenceDataSection()" class="w-4 h-4 text-blue-600 dark:text-blue-400 bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-blue-500">
+                            <label for="inputUseReferenceData" class="text-sm font-semibold text-slate-700 dark:text-slate-300">🔗 อ้างอิงข้อมูลจากชุดที่เคย Commit (ตัวเลือกเพิ่มเติม)</label>
+                        </div>
+                        <div id="referenceDataSection" class="hidden space-y-2 pl-2 border-l-2 border-blue-200 dark:border-blue-800 ml-1">
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500">เลือกวันที่ก่อน แล้วค่อยเลือกรอบข้อมูลเก่าที่เคย Commit ไว้ของวันนั้น จากนั้นติ๊กเลือกคอลัมน์ที่ต้องการให้ค่าตรงกับข้อมูลเดิม 100% (เช่น "รหัสพนักงาน") ระบบจะสุ่มหยิบค่าจากแถวเดิมมาใส่ให้ตรงเป๊ะ ไม่ผ่าน AI — ถ้าเลือกหลายคอลัมน์พร้อมกัน แต่ละแถวใหม่จะได้ค่าจากแถวต้นฉบับเดียวกันเสมอ (คู่ข้อมูลจะสอดคล้องกันไม่หลุด) ส่วนคอลัมน์อื่นที่ไม่ได้เลือก AI จะสร้างขึ้นใหม่ตามปกติ</p>
+
+                            <!-- (v73) ขั้นตอนที่ 1: เลือกวันที่ก่อน (กันรายการยาวเกินไปตอนมีข้อมูลเยอะ) -->
+                            <div class="flex items-center gap-2 min-w-0">
+                                <select id="selectReferenceDate" onchange="onReferenceDateSelectedForGenerate()" class="flex-1 min-w-0 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">-- กำลังโหลดรายการ... --</option>
+                                </select>
+                                <button onclick="loadReferenceBatchListForGenerate()" title="รีเซ็ต / รีเฟรชรายการ" class="shrink-0 px-2.5 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-600 transition-all">
+                                    🔄
+                                </button>
+                            </div>
+
+                            <!-- ขั้นตอนที่ 2: เลือกรอบ Commit เฉพาะวันที่เลือกไว้ (ซ่อนไว้จนกว่าจะเลือกวันที่) -->
+                            <div id="referenceBatchSelectRow" class="hidden flex items-center gap-2 min-w-0">
+                                <select id="selectReferenceBatch" onchange="onReferenceBatchSelectedForGenerate()" class="flex-1 min-w-0 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">-- เลือกรอบข้อมูลของวันนี้ --</option>
+                                </select>
+                                <button onclick="triggerDeleteReferenceBatchConfirm()" title="ลบรอบข้อมูลที่เลือกไว้" class="shrink-0 px-2.5 py-2 text-xs font-semibold bg-rose-50 dark:bg-rose-950 hover:bg-rose-100 text-rose-600 dark:text-rose-400 rounded-lg border border-rose-100 dark:border-rose-800 transition-all">
+                                    🗑️
+                                </button>
+                            </div>
+
+                            <div id="referenceColumnsContainer" class="hidden flex flex-wrap gap-x-4 gap-y-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2.5 max-h-32 overflow-y-auto"></div>
                         </div>
                     </div>
 
@@ -2355,7 +2388,7 @@
             const rowsStr = document.getElementById('inputRows').value.trim();
             const promptAdd = document.getElementById('inputPrompt').value.trim();
             const dialect = document.getElementById('inputDbDialect').value;
-            const ddlScript = document.getElementById('inputDdlScript').value.trim();
+            const structureScript = document.getElementById('inputStructureScript').value.trim();
             const allowNull = document.getElementById('inputAllowNull').checked;
 
             if (!type) {
@@ -2420,6 +2453,7 @@
             };
 
             try {
+                const referenceLockPayload = getReferenceLockPayload();
                 const result = await callBackend('generate', {
                     username: loggedInUsername,
                     role: loggedInRole,
@@ -2428,9 +2462,11 @@
                     dialect: dialect,
                     rowsRequested: rowsCount,
                     allowNull: allowNull,
-                    ddlScript: ddlScript,
+                    structureScript: structureScript,
                     promptAddition: promptAdd,
-                    schemaImageBase64: selectedSchemaImageBase64 || null
+                    schemaImageBase64: selectedSchemaImageBase64 || null,
+                    referenceColumns: referenceLockPayload.referenceColumns,
+                    referenceRows: referenceLockPayload.referenceRows
                 });
 
                 if (isAborted) { closeCustomAlert(); restoreButton(); return; }
@@ -2575,13 +2611,16 @@
             if (report.missingRequiredColumns && report.missingRequiredColumns.length > 0) {
                 rows.push(`<div class="p-2.5 bg-rose-50 dark:bg-rose-950 rounded-lg border border-rose-100 dark:border-rose-800"><b class="text-rose-700 dark:text-rose-400">คอลัมน์บังคับที่ขาดหายไป:</b><br>${report.missingRequiredColumns.join(', ')}</div>`);
             }
+            if (report.referenceColumnNamingWarnings && report.referenceColumnNamingWarnings.length > 0) {
+                rows.push(`<div class="p-2.5 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-100 dark:border-amber-800"><b class="text-amber-700 dark:text-amber-400">⚠️ AI ไม่ได้ใช้ชื่อคอลัมน์อ้างอิงตามที่กำหนด:</b><br>${report.referenceColumnNamingWarnings.join(', ')}<br><span class="text-xs">ระบบเพิ่ม/ทับคอลัมน์นี้ให้ถูกต้องแล้วโดยอัตโนมัติ แต่อาจมีคอลัมน์ซ้ำซ้อนความหมายเดียวกันภายใต้ชื่ออื่นหลงเหลืออยู่ ควรตรวจสอบตารางผลลัพธ์ด้านล่าง</span></div>`);
+            }
             if (report.structuralErrors && report.structuralErrors.length > 0) {
                 rows.push(`<div class="p-2.5 bg-rose-50 dark:bg-rose-950 rounded-lg border border-rose-100 dark:border-rose-800"><b class="text-rose-700 dark:text-rose-400">ปัญหาเชิงโครงสร้างข้อมูล:</b><ul class="list-disc pl-4 mt-1">${report.structuralErrors.map(e => `<li>${e}</li>`).join('')}</ul></div>`);
             }
             if (report.semanticIssues && report.semanticIssues.length > 0) {
                 rows.push(`<div class="p-2.5 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-100 dark:border-amber-800"><b class="text-amber-700 dark:text-amber-400">ข้อสังเกตจากการตรวจสอบเนื้อหา (AI self-check):</b><ul class="list-disc pl-4 mt-1">${report.semanticIssues.map(e => `<li>${e}</li>`).join('')}</ul></div>`);
             }
-            if (report.overallPass && (!report.droppedColumns || report.droppedColumns.length === 0) && (!report.semanticIssues || report.semanticIssues.length === 0)) {
+            if (report.overallPass && (!report.droppedColumns || report.droppedColumns.length === 0) && (!report.semanticIssues || report.semanticIssues.length === 0) && (!report.referenceColumnNamingWarnings || report.referenceColumnNamingWarnings.length === 0)) {
                 rows.push(`<div class="p-2.5 bg-emerald-50 dark:bg-emerald-950 rounded-lg border border-emerald-100 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">ไม่พบข้อสังเกตเพิ่มเติม ข้อมูลตรงตามเงื่อนไขที่ตั้งไว้ทั้งหมด</div>`);
             }
 
@@ -3140,6 +3179,215 @@
         }
 
         // ==========================================
+        // อ้างอิงข้อมูลจากชุดที่เคย Commit (ตัวเลือกเพิ่มเติมตอน Generate) — ใช้ action getGeneratedDatasetsList/getGeneratedDatasetBatch ตัวเดียวกับ
+        // "ประวัติชุดข้อมูลที่เคย Commit" ด้านบน (อ่านอย่างเดียว ไม่แตะโครงสร้างเดิมเลย) เพื่อให้ผู้ใช้เลือกคอลัมน์ที่อยากให้ค่าตรงกับข้อมูลเก่า 100%
+        // การทับค่าจริงทำที่ฝั่ง backend (applyReferenceColumnLock_ ใน Code.gs) ฝั่งนี้แค่เตรียม referenceColumns/referenceRows ส่งไปให้เท่านั้น
+        // ==========================================
+        let referenceBatchListForGenerate = [];
+        let referenceBatchDetailForGenerate = null; // { label, headers, rows } ของรอบที่เลือกไว้อ้างอิงตอน generate
+        let selectedReferenceDateKeyForGenerate = null; // (v73) วันที่ที่เลือกไว้ในขั้นตอนที่ 1
+
+        async function toggleReferenceDataSection() {
+            const checked = document.getElementById('inputUseReferenceData').checked;
+            const section = document.getElementById('referenceDataSection');
+            if (!checked) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+            // (v69) ดึงรายการรอบ Commit ใหม่ทุกครั้งที่ติ๊กเปิดใช้งาน (ไม่ใช้ของแคชเดิมซ้ำ) กันกรณี Commit ชุดข้อมูลใหม่เพิ่มระหว่างที่หน้าเว็บยังเปิดอยู่
+            await loadReferenceBatchListForGenerate();
+        }
+
+        // (v71) แยกออกมาจาก toggleReferenceDataSection() เพื่อให้ปุ่ม 🔄 (รีเซ็ต/รีเฟรชรายการ) เรียกซ้ำได้ตรงๆ โดยไม่ต้องถอดติ๊ก/ติ๊กใหม่
+        // (v73) เปลี่ยนมาโหลดเป็นรายการ "วันที่" ก่อน (ขั้นตอนที่ 1) แทนที่จะโชว์รอบ Commit ทั้งหมดเป็น dropdown ยาวๆ รวดเดียว
+        // เพื่อให้ใช้งานง่ายขึ้นตอนมีข้อมูลเยอะ (เหมือนแพทเทิร์นเดียวกับหน้าต่าง "📦 ประวัติชุดข้อมูลที่เคย Commit" ที่มีอยู่แล้ว)
+        // เป็นแค่การอ่านอย่างเดียว (getGeneratedDatasetsList) ไม่หนัก ยิงซ้ำได้ไม่มีผลเสีย
+        async function loadReferenceBatchListForGenerate() {
+            const dateSelect = document.getElementById('selectReferenceDate');
+            const batchRow = document.getElementById('referenceBatchSelectRow');
+            const batchSelect = document.getElementById('selectReferenceBatch');
+            const columnsContainer = document.getElementById('referenceColumnsContainer');
+            selectedReferenceDateKeyForGenerate = null;
+            referenceBatchDetailForGenerate = null;
+            batchRow.classList.add('hidden');
+            batchSelect.innerHTML = '<option value="">-- เลือกรอบข้อมูลของวันนี้ --</option>';
+            columnsContainer.classList.add('hidden');
+            columnsContainer.innerHTML = '';
+            dateSelect.innerHTML = '<option value="">-- กำลังโหลดรายการ... --</option>';
+            try {
+                const result = await callBackend('getGeneratedDatasetsList', {});
+                referenceBatchListForGenerate = result.batches || [];
+                if (!referenceBatchListForGenerate.length) {
+                    dateSelect.innerHTML = '<option value="">-- ยังไม่เคย Commit ชุดข้อมูลใดเลย --</option>';
+                    return;
+                }
+                renderReferenceDateOptionsForGenerate();
+            } catch (err) {
+                pushLog('ERROR', `โหลดรายการชุดข้อมูลที่เคย Commit (สำหรับอ้างอิง) ไม่สำเร็จ: ${err.message}`);
+                dateSelect.innerHTML = '<option value="">-- โหลดรายการไม่สำเร็จ ลองกด 🔄 ใหม่อีกครั้ง --</option>';
+            }
+        }
+
+        // (v73) ขั้นตอนที่ 1: จัดกลุ่ม referenceBatchListForGenerate ตามวันที่ (dateKey) แล้วสร้าง option ของ select วันที่
+        // referenceBatchListForGenerate เรียงใหม่สุดขึ้นก่อนอยู่แล้วจาก backend (handleGetGeneratedDatasetsList_ ทำ .reverse() ไว้) จึงกลุ่มวันที่ก็จะใหม่สุดขึ้นก่อนตามไปด้วยโดยอัตโนมัติ
+        function renderReferenceDateOptionsForGenerate() {
+            const dateSelect = document.getElementById('selectReferenceDate');
+            const dateGroups = [];
+            const seen = {};
+            referenceBatchListForGenerate.forEach(b => {
+                const key = b.dateKey || 'ไม่ทราบวันที่';
+                if (!seen[key]) {
+                    seen[key] = { key: key, count: 0 };
+                    dateGroups.push(seen[key]);
+                }
+                seen[key].count++;
+            });
+            dateSelect.innerHTML = '<option value="">-- เลือกวันที่ --</option>' +
+                dateGroups.map(g =>
+                    `<option value="${g.key}">📅 ${g.key === 'ไม่ทราบวันที่' ? g.key : formatThaiDateLabelFromKey_(g.key)} (${g.count} รอบ Commit)</option>`
+                ).join('');
+        }
+
+        // (v73) ขั้นตอนที่ 2: พอเลือกวันที่แล้ว กรองเฉพาะรอบ Commit ของวันนั้นมาใส่ select รอบที่สอง
+        function onReferenceDateSelectedForGenerate() {
+            const dateKey = document.getElementById('selectReferenceDate').value;
+            const batchRow = document.getElementById('referenceBatchSelectRow');
+            const batchSelect = document.getElementById('selectReferenceBatch');
+            const columnsContainer = document.getElementById('referenceColumnsContainer');
+            selectedReferenceDateKeyForGenerate = dateKey || null;
+            referenceBatchDetailForGenerate = null;
+            columnsContainer.classList.add('hidden');
+            columnsContainer.innerHTML = '';
+            if (!dateKey) {
+                batchRow.classList.add('hidden');
+                batchSelect.innerHTML = '<option value="">-- เลือกรอบข้อมูลของวันนี้ --</option>';
+                return;
+            }
+            const batchesForDate = referenceBatchListForGenerate.filter(b => (b.dateKey || 'ไม่ทราบวันที่') === dateKey);
+            batchRow.classList.remove('hidden');
+            batchSelect.innerHTML = '<option value="">-- เลือกรอบข้อมูลของวันนี้ --</option>' +
+                batchesForDate.map(b =>
+                    `<option value="${b.batchIndex}">${b.label} (${b.rowCount} แถว, ${b.columnCount} คอลัมน์)</option>`
+                ).join('');
+        }
+
+        // (v71) ลบรอบข้อมูลที่กำลังเลือกอยู่ในตอนนั้นออกจาก GeneratedDatasets ถาวร — ใช้ action เดิม deleteGeneratedDatasetBatch
+        // ตัวเดียวกับปุ่มลบในหน้าต่าง "📦 ประวัติชุดข้อมูลที่เคย Commit" แค่ย้ายมาไว้ตรงนี้เพื่อความสะดวก ไม่ต้องสลับไปหน้าต่างอื่นระหว่างตั้งค่า generate
+        function triggerDeleteReferenceBatchConfirm() {
+            const select = document.getElementById('selectReferenceBatch');
+            if (select.value === "") {
+                showCustomAlert("กรุณาเลือกรอบข้อมูลที่ต้องการลบก่อน");
+                return;
+            }
+            // (v72 แก้บั๊ก) select.value คือค่า b.batchIndex (ลำดับจริงในชีต นับจาก 0) ไม่ใช่ตำแหน่งในอาร์เรย์นี้ — อาร์เรย์นี้ถูก .reverse() ไว้แล้วตอนแสดงผล (ใหม่สุดขึ้นก่อน)
+            // เดิมใช้ referenceBatchListForGenerate[parseInt(select.value, 10)] ตรงๆ ทำให้ได้ตัวผิด (หรือ undefined) เพราะตำแหน่งในอาร์เรย์กับค่า batchIndex ไม่ตรงกันหลัง reverse ต้อง .find() ด้วย batchIndex แทน
+            const b = referenceBatchListForGenerate.find(x => String(x.batchIndex) === String(select.value));
+            if (!b) return;
+
+            showCustomConfirm(
+                "ยืนยันการลบชุดข้อมูล",
+                `ต้องการลบรอบข้อมูล "${b.label}" ที่เคย Commit ไว้ใช่หรือไม่? การกระทำนี้ย้อนกลับไม่ได้ และจะลบข้อมูลทั้งบล็อกออกจาก Google Sheet ถาวร`,
+                "⚠️",
+                "bg-rose-600 hover:bg-rose-700",
+                async function (confirmed) {
+                    if (!confirmed) return;
+                    try {
+                        await callBackend('deleteGeneratedDatasetBatch', {
+                            username: loggedInUsername,
+                            role: loggedInRole,
+                            batchIndex: select.value,
+                            label: b.label
+                        });
+                        pushLog('SUCCESS', `ลบรอบข้อมูลที่เคย Commit ไว้เรียบร้อยแล้ว: ${b.label}`);
+                        showCustomAlert('ลบรอบข้อมูลนี้เรียบร้อยแล้ว');
+
+                        // (v73) หลังลบแล้ว ถ้าวันที่เดิมยังมีรอบอื่นเหลืออยู่ ให้กลับไปที่ขั้นตอนที่ 2 (เลือกรอบ) ของวันเดิมต่อเลย
+                        // ถ้าไม่เหลือแล้วให้ย้อนกลับไปขั้นตอนที่ 1 (เลือกวันที่ใหม่) แทน — เหมือนพฤติกรรมของหน้าต่าง "📦 ประวัติชุดข้อมูลที่เคย Commit"
+                        const dateKey = selectedReferenceDateKeyForGenerate;
+                        const result = await callBackend('getGeneratedDatasetsList', {});
+                        referenceBatchListForGenerate = result.batches || [];
+                        renderReferenceDateOptionsForGenerate();
+                        const stillHasBatchesForDate = referenceBatchListForGenerate.some(x => (x.dateKey || 'ไม่ทราบวันที่') === dateKey);
+                        if (stillHasBatchesForDate) {
+                            document.getElementById('selectReferenceDate').value = dateKey;
+                            onReferenceDateSelectedForGenerate();
+                        } else {
+                            document.getElementById('selectReferenceDate').value = '';
+                            onReferenceDateSelectedForGenerate();
+                        }
+                    } catch (err) {
+                        showCustomAlert("ลบรอบข้อมูลไม่สำเร็จ: " + err.message);
+                    }
+                }
+            );
+        }
+
+        async function onReferenceBatchSelectedForGenerate() {
+            const batchIndex = document.getElementById('selectReferenceBatch').value;
+            const container = document.getElementById('referenceColumnsContainer');
+            referenceBatchDetailForGenerate = null;
+            if (batchIndex === '') {
+                container.classList.add('hidden');
+                container.innerHTML = '';
+                return;
+            }
+            container.classList.remove('hidden');
+            container.innerHTML = '<p class="text-slate-400 dark:text-slate-500">กำลังโหลดคอลัมน์...</p>';
+            try {
+                const result = await callBackend('getGeneratedDatasetBatch', { batchIndex: batchIndex });
+                referenceBatchDetailForGenerate = result;
+                const headers = result.headers || [];
+                if (!headers.length) {
+                    container.innerHTML = '<p class="text-slate-400 dark:text-slate-500">รอบนี้ไม่มีคอลัมน์ให้เลือก</p>';
+                    return;
+                }
+                container.innerHTML = headers.map((h, idx) => `
+                    <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" class="reference-column-checkbox w-3.5 h-3.5 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-blue-500" value="${h}">
+                        <span class="text-slate-700 dark:text-slate-300">${h}</span>
+                    </label>
+                `).join('');
+            } catch (err) {
+                pushLog('ERROR', `โหลดรายละเอียดชุดข้อมูลที่เลือก (สำหรับอ้างอิง) ไม่สำเร็จ: ${err.message}`);
+                container.innerHTML = `<p class="text-rose-500 dark:text-rose-400">โหลดไม่สำเร็จ: ${err.message}</p>`;
+            }
+        }
+
+        // คืนค่า { referenceColumns, referenceRows } เพื่อแนบไปกับคำขอ generate — คืนค่าว่างถ้าไม่ได้เปิดใช้ฟีเจอร์นี้ไว้ หรือยังไม่ได้เลือกคอลัมน์ใดเลย
+        // referenceRows ตัดมาเฉพาะคอลัมน์ที่เลือกไว้เท่านั้น (ไม่ส่งข้อมูลทั้งแถวที่ไม่จำเป็นไปให้ backend เปล่าๆ)
+        function getReferenceLockPayload() {
+            const useReference = document.getElementById('inputUseReferenceData').checked;
+            if (!useReference || !referenceBatchDetailForGenerate) {
+                return { referenceColumns: [], referenceRows: [] };
+            }
+            const checkboxes = document.querySelectorAll('#referenceColumnsContainer .reference-column-checkbox:checked');
+            const referenceColumns = Array.from(checkboxes).map(cb => cb.value);
+            if (!referenceColumns.length) {
+                return { referenceColumns: [], referenceRows: [] };
+            }
+            const referenceRows = (referenceBatchDetailForGenerate.rows || []).map(row => {
+                const picked = {};
+                referenceColumns.forEach(col => { picked[col] = row[col]; });
+                return picked;
+            });
+            return { referenceColumns: referenceColumns, referenceRows: referenceRows };
+        }
+
+        function resetReferenceDataSection() {
+            document.getElementById('inputUseReferenceData').checked = false;
+            document.getElementById('referenceDataSection').classList.add('hidden');
+            document.getElementById('selectReferenceDate').value = '';
+            document.getElementById('referenceBatchSelectRow').classList.add('hidden');
+            document.getElementById('selectReferenceBatch').value = '';
+            document.getElementById('referenceColumnsContainer').classList.add('hidden');
+            document.getElementById('referenceColumnsContainer').innerHTML = '';
+            referenceBatchDetailForGenerate = null;
+            selectedReferenceDateKeyForGenerate = null;
+            // (v69) ไม่จำเป็นต้องล้าง referenceBatchListForGenerate ตรงนี้แล้ว เพราะ toggleReferenceDataSection() ดึงข้อมูลใหม่ทุกครั้งที่ติ๊กเปิดอยู่แล้วเสมอ
+        }
+
+        // ==========================================
         // แผงจัดการผู้ใช้งาน (เฉพาะ Super_Admin) — ดู/ลบ user คนอื่น และรีเซ็ตรหัสผ่านคนอื่นจากหน้าเว็บ
         // ปุ่มเปิดถูกซ่อนไว้ให้ role อื่นมองไม่เห็นอยู่แล้ว (ดู enterDashboard()) แต่ backend ก็เช็คสิทธิ์ Super_Admin ซ้ำอีกชั้นเสมอ
         // ==========================================
@@ -3639,7 +3887,7 @@
             document.getElementById('inputDbDialect').value = p.dialect || 'PostgreSQL';
             document.getElementById('inputRows').value = p.rows_requested || '';
             document.getElementById('inputAllowNull').checked = (p.allow_null === true || p.allow_null === 'TRUE' || p.allow_null === 'true');
-            document.getElementById('inputDdlScript').value = p.ddl_script || '';
+            document.getElementById('inputStructureScript').value = p.structure_script || p.ddl_script || '';
             document.getElementById('inputPrompt').value = p.prompt_addition || '';
 
             // ล้างรูปเดิมในฟอร์มก่อนเสมอ แล้วถ้า prompt นี้เคยมีการแนบรูป Schema/ER Diagram ไว้ตอนบันทึก ให้ดึงกลับมาใส่ให้อัตโนมัติ
@@ -3710,7 +3958,7 @@
             const dialect = document.getElementById('inputDbDialect').value;
             const rowsStr = document.getElementById('inputRows').value.trim();
             const allowNull = document.getElementById('inputAllowNull').checked;
-            const ddlScript = document.getElementById('inputDdlScript').value.trim();
+            const structureScript = document.getElementById('inputStructureScript').value.trim();
             const promptAdd = document.getElementById('inputPrompt').value.trim();
 
             if (!type || !tableNameInput) {
@@ -3728,7 +3976,7 @@
                     dialect: dialect,
                     rowsRequested: rowsStr,
                     allowNull: allowNull,
-                    ddlScript: ddlScript,
+                    structureScript: structureScript,
                     promptAddition: promptAdd,
                     imageBase64: selectedSchemaImageBase64 || null
                 });
@@ -3966,8 +4214,9 @@
             document.getElementById('inputRows').value = "";
             document.getElementById('inputPrompt').value = "";
             
-            document.getElementById('inputDdlScript').value = "";
+            document.getElementById('inputStructureScript').value = "";
             document.getElementById('inputAllowNull').checked = false;
+            resetReferenceDataSection();
 
             // เลิกเลือก Prompt ที่เคยบันทึกไว้ (ใช้ซ้ำได้) กลับไปเป็นค่า default ด้วย ไม่ให้ค้างเป็นตัวที่เคยเลือกไว้ก่อนกดรีเซ็ต
             const savedPromptsSelectEl = document.getElementById('savedPromptsSelect');
@@ -4035,4 +4284,3 @@
     </script>
 </body>
 </html>
-
