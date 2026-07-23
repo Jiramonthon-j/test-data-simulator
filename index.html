@@ -3907,8 +3907,46 @@
                 }
             }
 
-            pushLog('INFO', `โหลด Prompt ที่บันทึกไว้มาใช้: "${p.prompt_name}"${imageRestored ? ' (พร้อมรูปภาพที่เคยแนบไว้)' : ''}`);
-            showCustomAlert(`โหลดเงื่อนไขจาก Prompt "${p.prompt_name}" มาใส่ในฟอร์มเรียบร้อยแล้ว${imageRestored ? ' พร้อมรูปภาพที่เคยแนบไว้' : ''}`);
+            // (v75) ถ้า prompt นี้เคยล็อกคอลัมน์อ้างอิงไว้ ลองค้นหารอบ Commit เดิม (จับคู่ด้วย label ที่บันทึกไว้ตอนนั้น) แล้ว auto-select ให้อัตโนมัติ
+            // ล้างส่วนนี้ก่อนเสมอ (resetReferenceDataSection) กันกรณี prompt ก่อนหน้าเคยเปิดใช้ค้างไว้ แต่ prompt ใหม่นี้ไม่มีข้อมูลส่วนนี้เลย
+            let referenceLockRestored = false;
+            let referenceLockRestoreFailed = false;
+            resetReferenceDataSection();
+            const savedReferenceColumns = String(p.reference_columns || '').split(',').map(s => s.trim()).filter(Boolean);
+            const savedReferenceBatchLabel = p.reference_batch_label || '';
+            if (savedReferenceColumns.length && savedReferenceBatchLabel) {
+                try {
+                    document.getElementById('inputUseReferenceData').checked = true;
+                    await toggleReferenceDataSection(); // โหลดรายการวันที่/รอบ Commit ล่าสุดเข้ามาก่อน
+                    const matchedBatch = referenceBatchListForGenerate.find(b => b.label === savedReferenceBatchLabel);
+                    if (matchedBatch) {
+                        const dateKey = matchedBatch.dateKey || 'ไม่ทราบวันที่';
+                        document.getElementById('selectReferenceDate').value = dateKey;
+                        onReferenceDateSelectedForGenerate();
+                        document.getElementById('selectReferenceBatch').value = matchedBatch.batchIndex;
+                        await onReferenceBatchSelectedForGenerate(); // โหลดคอลัมน์ของรอบนี้เข้ามาให้ติ๊กต่อ
+                        document.querySelectorAll('#referenceColumnsContainer .reference-column-checkbox').forEach(cb => {
+                            cb.checked = savedReferenceColumns.includes(cb.value);
+                        });
+                        referenceLockRestored = true;
+                    } else {
+                        // รอบเดิมหาไม่เจอแล้ว (น่าจะถูกลบไปแล้ว) — ปิดกลับไปเป็นสถานะไม่ได้ใช้ฟีเจอร์นี้ แล้วแจ้งผู้ใช้แทน ไม่ error
+                        resetReferenceDataSection();
+                        referenceLockRestoreFailed = true;
+                    }
+                } catch (err) {
+                    pushLog('ERROR', `กู้คืนการตั้งค่าอ้างอิงข้อมูลของ Prompt นี้ไม่สำเร็จ: ${err.message}`);
+                    resetReferenceDataSection();
+                    referenceLockRestoreFailed = true;
+                }
+            }
+
+            let extraNote = '';
+            if (referenceLockRestored) extraNote = ` พร้อมตั้งค่าอ้างอิงข้อมูลจากชุด "${savedReferenceBatchLabel}" ที่เคยเลือกไว้`;
+            if (referenceLockRestoreFailed) extraNote = ` (⚠️ เคยอ้างอิงชุดข้อมูล "${savedReferenceBatchLabel}" ไว้ แต่ตอนนี้หาไม่เจอแล้ว อาจถูกลบไปแล้ว กรุณาเลือกชุดอ้างอิงใหม่เอง)`;
+
+            pushLog('INFO', `โหลด Prompt ที่บันทึกไว้มาใช้: "${p.prompt_name}"${imageRestored ? ' (พร้อมรูปภาพที่เคยแนบไว้)' : ''}${extraNote}`);
+            showCustomAlert(`โหลดเงื่อนไขจาก Prompt "${p.prompt_name}" มาใส่ในฟอร์มเรียบร้อยแล้ว${imageRestored ? ' พร้อมรูปภาพที่เคยแนบไว้' : ''}${extraNote}`);
         }
 
         // ลบ Prompt ที่เลือกไว้ในดรอปดาวน์ออกทั้งจากรายการหน้าเว็บและทั้งแถวใน Google Sheet (SavedPrompts) กันแถวว่างค้าง
@@ -3967,6 +4005,11 @@
             }
 
             try {
+                // (v74) แนบชื่อคอลัมน์ที่เลือกล็อกไว้ (ถ้าเปิดใช้ Reference Column Lock อยู่ตอนกดบันทึก) เพื่อบันทึกไว้ใน SavedPrompts เป็นข้อมูลอ้างอิง
+                // ไม่ได้บันทึก referenceRows (ข้อมูลจริงจากชุดที่อ้างอิง) เพราะเป็นข้อมูล ณ ขณะนั้นที่อาจถูกลบ/เปลี่ยนไปแล้วตอนโหลด prompt กลับมาใช้ภายหลัง
+                // (v75) แนบ label ของรอบ Commit ที่เลือกไว้ด้วย (label คงที่ตลอดอายุของรอบนั้น ต่างจาก batchIndex ที่เลื่อนตำแหน่งได้) เพื่อให้ตอนโหลด prompt กลับมาใช้ค้นหารอบเดิมแล้ว auto-select ให้อัตโนมัติได้
+                const referenceColumnsForSave = getReferenceLockPayload().referenceColumns;
+                const referenceBatchLabelForSave = (referenceColumnsForSave.length && referenceBatchDetailForGenerate) ? (referenceBatchDetailForGenerate.label || '') : '';
                 await callBackend('savePrompt', {
                     username: loggedInUsername,
                     role: loggedInRole,
@@ -3978,7 +4021,9 @@
                     allowNull: allowNull,
                     structureScript: structureScript,
                     promptAddition: promptAdd,
-                    imageBase64: selectedSchemaImageBase64 || null
+                    imageBase64: selectedSchemaImageBase64 || null,
+                    referenceColumns: referenceColumnsForSave,
+                    referenceBatchLabel: referenceBatchLabelForSave
                 });
                 nameInput.value = "";
                 pushLog('SUCCESS', `บันทึก Prompt "${promptName}" ไว้ใช้ซ้ำเรียบร้อยแล้ว${selectedSchemaImageBase64 ? ' (พร้อมรูปภาพแนบ)' : ''}`);
