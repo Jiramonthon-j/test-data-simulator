@@ -287,9 +287,12 @@
         .dash-hero { flex: 1 1 auto; min-height: 0; }
         .dash-hero-canvas-wrap {
             flex: 1.35; background: #fff; border-radius: 28px; position: relative;
-            overflow: hidden; min-height: 560px; display: none;
+            overflow: hidden; min-height: 0; display: none;
             box-shadow: 0 2px 14px -4px rgba(0,0,0,.08);
         }
+        /* (v88) เดิม min-height: 560px ตรงนี้เป็นค่าคงที่เก่าที่ตกค้างจากก่อนแก้ .dash-hero ด้านบนให้ล็อคตามพื้นที่จริงแทนการประมาณค่า (ดู comment บรรทัดบน .dash-hero)
+           พอจอจริงมีพื้นที่ .app-main เหลือน้อยกว่า 560px (เบราว์เซอร์มีแถบ/จอเล็กกว่าที่ทดสอบ) กล่องนี้ไม่ยอมหดตาม ดัน .app-main ทั้งกรอบล้นจนต้องเลื่อน (บั๊กเดียวกับที่เพิ่งแก้ฝั่ง sidebar)
+           เปลี่ยนเป็น min-height: 0 ปล่อยให้ flex:1 1 auto ของ .dash-hero ด้านบนคุมขนาดจริงแทน กล่องจะยืด/หดพอดีกับพื้นที่ที่เหลือเสมอ ไม่ล้นอีก */
         .dark .dash-hero-canvas-wrap { background: #1c1c1c; }
         .dash-hero-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
         .dash-hero-right {
