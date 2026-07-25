@@ -133,8 +133,15 @@
             flex-direction: column;
             gap: 18px;
             padding: 8px 6px;
-            overflow-y: auto;
+            overflow: hidden;
+            min-height: 0;
         }
+        /* (v88) เดิม .app-sidebar เองเป็นตัว overflow-y:auto ตรงๆ ทำให้พอเนื้อหารวม (nav 8 ปุ่ม + การ์ดท้าย sidebar 2 ใบ) สูงเกิน viewport จริง (จอที่เล็กกว่าตอนออกแบบ/มีแถบเบราว์เซอร์บัง)
+           sidebar ทั้งกล่องกลายเป็นเลื่อนได้เอง และการ์ดอธิบายท้ายสุดโดนตัดครึ่ง ขัดกับ comment เดิมด้านบนที่ตั้งใจไว้ว่า sidebar ต้องนิ่ง เลื่อนได้เฉพาะ .app-main เท่านั้น
+           ย้าย overflow-y:auto ไปไว้ที่ .app-navlist (ตัวลิสต์เมนูอย่างเดียว) แทน — ถ้าในอนาคตเมนูเยอะขึ้นจนไม่พอจริงๆ จะเลื่อนแค่ส่วนเมนู ส่วนการ์ดท้าย sidebar (flex-shrink:0) จะยังโชว์เต็มเสมอ ไม่โดนตัดอีก */
+        .brandmark { flex-shrink: 0; }
+        .app-navlist { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+        .app-sidebar-footer { flex-shrink: 0; }
         .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; overflow-x: hidden; min-height: 0; }
         /* กล่องหัวข้อ "Intelligent Test Data Simulator" ล็อกไว้ด้านบนเสมอ ไม่เลื่อนตามเนื้อหาข้างล่างที่เลื่อนอยู่ใน .app-main (position:sticky เทียบกับกรอบที่เลื่อนได้คือ .app-main เอง) */
         #appMainHeader { position: sticky; top: 0; z-index: 5; flex-shrink: 0; }
@@ -211,7 +218,7 @@
         @media (max-width: 1024px) {
             .app-shell { flex-direction: column; }
             .app-sidebar { width: 100%; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; }
-            .app-navlist { flex-direction: row; flex-wrap: wrap; }
+            .app-navlist { flex-direction: row; flex-wrap: wrap; flex: none; min-height: auto; overflow-y: visible; }
             .app-sidebar-footer { margin-top: 0; }
             /* จอเล็ก: กลับไปเลื่อนทั้งหน้าตามปกติ ไม่ล็อกความสูงแบบจอใหญ่ เพราะพื้นที่ไม่พอจะยัด sidebar (ที่กลายเป็นแถวนอนด้านบน) + เนื้อหาไว้ในจอเดียวได้ */
             #dashboardScreen { height: auto; overflow: visible; }
