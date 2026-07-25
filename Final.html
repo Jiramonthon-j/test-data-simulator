@@ -133,8 +133,15 @@
             flex-direction: column;
             gap: 18px;
             padding: 8px 6px;
-            overflow-y: auto;
+            overflow: hidden;
+            min-height: 0;
         }
+        /* (v88) เดิม .app-sidebar เองเป็นตัว overflow-y:auto ตรงๆ ทำให้พอเนื้อหารวม (nav 8 ปุ่ม + การ์ดท้าย sidebar 2 ใบ) สูงเกิน viewport จริง (จอที่เล็กกว่าตอนออกแบบ/มีแถบเบราว์เซอร์บัง)
+           sidebar ทั้งกล่องกลายเป็นเลื่อนได้เอง และการ์ดอธิบายท้ายสุดโดนตัดครึ่ง ขัดกับ comment เดิมด้านบนที่ตั้งใจไว้ว่า sidebar ต้องนิ่ง เลื่อนได้เฉพาะ .app-main เท่านั้น
+           ย้าย overflow-y:auto ไปไว้ที่ .app-navlist (ตัวลิสต์เมนูอย่างเดียว) แทน — ถ้าในอนาคตเมนูเยอะขึ้นจนไม่พอจริงๆ จะเลื่อนแค่ส่วนเมนู ส่วนการ์ดท้าย sidebar (flex-shrink:0) จะยังโชว์เต็มเสมอ ไม่โดนตัดอีก */
+        .brandmark { flex-shrink: 0; }
+        .app-navlist { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+        .app-sidebar-footer { flex-shrink: 0; }
         .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; overflow-x: hidden; min-height: 0; }
         /* กล่องหัวข้อ "Intelligent Test Data Simulator" ล็อกไว้ด้านบนเสมอ ไม่เลื่อนตามเนื้อหาข้างล่างที่เลื่อนอยู่ใน .app-main (position:sticky เทียบกับกรอบที่เลื่อนได้คือ .app-main เอง) */
         #appMainHeader { position: sticky; top: 0; z-index: 5; flex-shrink: 0; }
@@ -211,7 +218,7 @@
         @media (max-width: 1024px) {
             .app-shell { flex-direction: column; }
             .app-sidebar { width: 100%; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; }
-            .app-navlist { flex-direction: row; flex-wrap: wrap; }
+            .app-navlist { flex-direction: row; flex-wrap: wrap; flex: none; min-height: auto; overflow-y: visible; }
             .app-sidebar-footer { margin-top: 0; }
             /* จอเล็ก: กลับไปเลื่อนทั้งหน้าตามปกติ ไม่ล็อกความสูงแบบจอใหญ่ เพราะพื้นที่ไม่พอจะยัด sidebar (ที่กลายเป็นแถวนอนด้านบน) + เนื้อหาไว้ในจอเดียวได้ */
             #dashboardScreen { height: auto; overflow: visible; }
@@ -280,9 +287,12 @@
         .dash-hero { flex: 1 1 auto; min-height: 0; }
         .dash-hero-canvas-wrap {
             flex: 1.35; background: #fff; border-radius: 28px; position: relative;
-            overflow: hidden; min-height: 560px; display: none;
+            overflow: hidden; min-height: 0; display: none;
             box-shadow: 0 2px 14px -4px rgba(0,0,0,.08);
         }
+        /* (v88) เดิม min-height: 560px ตรงนี้เป็นค่าคงที่เก่าที่ตกค้างจากก่อนแก้ .dash-hero ด้านบนให้ล็อคตามพื้นที่จริงแทนการประมาณค่า (ดู comment บรรทัดบน .dash-hero)
+           พอจอจริงมีพื้นที่ .app-main เหลือน้อยกว่า 560px (เบราว์เซอร์มีแถบ/จอเล็กกว่าที่ทดสอบ) กล่องนี้ไม่ยอมหดตาม ดัน .app-main ทั้งกรอบล้นจนต้องเลื่อน (บั๊กเดียวกับที่เพิ่งแก้ฝั่ง sidebar)
+           เปลี่ยนเป็น min-height: 0 ปล่อยให้ flex:1 1 auto ของ .dash-hero ด้านบนคุมขนาดจริงแทน กล่องจะยืด/หดพอดีกับพื้นที่ที่เหลือเสมอ ไม่ล้นอีก */
         .dark .dash-hero-canvas-wrap { background: #1c1c1c; }
         .dash-hero-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
         .dash-hero-right {
@@ -1322,7 +1332,12 @@
             const isDashboardCanvas = (canvasId === 'dashCanvas');
             let t = 0;
             function frame() {
-                if (W > 0 && H > 0) {
+                // (v88) เดิมเช็คแค่ W > 0 && H > 0 ซึ่งเป็นค่าที่ resize() เคยจำไว้ตอนแสดงผลครั้งล่าสุด — พอ container ถูกซ่อนด้วย display:none (สลับไปแท็บอื่น/login เสร็จแล้ว)
+                // ค่า W/H ไม่ได้ถูกรีเซ็ตกลับเป็น 0 เลย ทำให้ลูปนี้ยังคงวาดจุดทั้ง 150 จุดพร้อมคำนวณตรีโกณเต็มรูปแบบทุกเฟรม (60 ครั้ง/วินาที) ต่อไปเรื่อยๆ แบบมองไม่เห็นผล
+                // ทั้ง authCanvas (หลัง login แล้วก็ยังวาดค้างอยู่) และ dashCanvas (ตอนอยู่แท็บอื่นที่ไม่ใช่ Dashboard) วาดพร้อมกันตลอดเวลา แย่งงาน main thread จนเลื่อนหน้าจอ (scroll) กระตุก/ไม่สมูท
+                // แก้ด้วยการเช็ค offsetParent === null (เป็น null ทันทีที่ตัวเองหรือ ancestor ใดๆ โดน display:none) ข้ามงานวาดทั้งหมดทันทีที่มองไม่เห็นจริง ปล่อยแค่ requestAnimationFrame เปล่าๆ รอไว้ (ต้นทุนแทบเป็นศูนย์)
+                const isCanvasVisible = canvas.offsetParent !== null;
+                if (isCanvasVisible && W > 0 && H > 0) {
                     const isDarkMode = document.documentElement.classList.contains('dark');
                     t += 0.006;
                     ctx.clearRect(0, 0, W, H);
@@ -1356,8 +1371,8 @@
                         }
                         ctx.fillRect(x - p.size / 2, y - p.size / 2, p.size, p.size);
                     }
-                } else {
-                    resize(); // เผื่อ container เพิ่งถูกแสดงหลังจากที่เคยซ่อนอยู่ตอน init ครั้งแรก (เช่น login สำเร็จแล้วสลับไป Dashboard)
+                } else if (isCanvasVisible) {
+                    resize(); // มองเห็นได้แล้วแต่ยังไม่เคยวัดขนาด (เพิ่งถูกแสดงครั้งแรกหลังเคยซ่อนอยู่ เช่น login สำเร็จแล้วสลับมาแท็บ Dashboard) — วัดขนาดครั้งเดียวตอนนี้ ไม่ต้องทำอะไรตอนยังซ่อนอยู่จริงๆ
                 }
                 requestAnimationFrame(frame);
             }

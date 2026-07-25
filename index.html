@@ -1332,7 +1332,12 @@
             const isDashboardCanvas = (canvasId === 'dashCanvas');
             let t = 0;
             function frame() {
-                if (W > 0 && H > 0) {
+                // (v88) เดิมเช็คแค่ W > 0 && H > 0 ซึ่งเป็นค่าที่ resize() เคยจำไว้ตอนแสดงผลครั้งล่าสุด — พอ container ถูกซ่อนด้วย display:none (สลับไปแท็บอื่น/login เสร็จแล้ว)
+                // ค่า W/H ไม่ได้ถูกรีเซ็ตกลับเป็น 0 เลย ทำให้ลูปนี้ยังคงวาดจุดทั้ง 150 จุดพร้อมคำนวณตรีโกณเต็มรูปแบบทุกเฟรม (60 ครั้ง/วินาที) ต่อไปเรื่อยๆ แบบมองไม่เห็นผล
+                // ทั้ง authCanvas (หลัง login แล้วก็ยังวาดค้างอยู่) และ dashCanvas (ตอนอยู่แท็บอื่นที่ไม่ใช่ Dashboard) วาดพร้อมกันตลอดเวลา แย่งงาน main thread จนเลื่อนหน้าจอ (scroll) กระตุก/ไม่สมูท
+                // แก้ด้วยการเช็ค offsetParent === null (เป็น null ทันทีที่ตัวเองหรือ ancestor ใดๆ โดน display:none) ข้ามงานวาดทั้งหมดทันทีที่มองไม่เห็นจริง ปล่อยแค่ requestAnimationFrame เปล่าๆ รอไว้ (ต้นทุนแทบเป็นศูนย์)
+                const isCanvasVisible = canvas.offsetParent !== null;
+                if (isCanvasVisible && W > 0 && H > 0) {
                     const isDarkMode = document.documentElement.classList.contains('dark');
                     t += 0.006;
                     ctx.clearRect(0, 0, W, H);
@@ -1366,8 +1371,8 @@
                         }
                         ctx.fillRect(x - p.size / 2, y - p.size / 2, p.size, p.size);
                     }
-                } else {
-                    resize(); // เผื่อ container เพิ่งถูกแสดงหลังจากที่เคยซ่อนอยู่ตอน init ครั้งแรก (เช่น login สำเร็จแล้วสลับไป Dashboard)
+                } else if (isCanvasVisible) {
+                    resize(); // มองเห็นได้แล้วแต่ยังไม่เคยวัดขนาด (เพิ่งถูกแสดงครั้งแรกหลังเคยซ่อนอยู่ เช่น login สำเร็จแล้วสลับมาแท็บ Dashboard) — วัดขนาดครั้งเดียวตอนนี้ ไม่ต้องทำอะไรตอนยังซ่อนอยู่จริงๆ
                 }
                 requestAnimationFrame(frame);
             }
