@@ -139,6 +139,37 @@
             overflow: hidden;
             min-height: 0;
         }
+        /* (v154) Responsive: จอแคบกว่า 900px (มือถือ/แท็บเล็ต) ไม่มีพื้นที่พอให้ sidebar 220px คงที่ + เนื้อหาหลักอยู่คู่กันแบบเดิมได้สบายๆ อีกต่อไป
+           เปลี่ยน sidebar เป็นแผงลอย (off-canvas) ที่ซ่อนไว้นอกจอทางซ้ายเป็นค่าเริ่มต้น แล้วเลื่อนเข้ามาทับหน้าจอ (fixed + translateX) เมื่อกดปุ่มแฮมเบอร์เกอร์ (.app-hamburger-btn ที่โผล่เฉพาะจอแคบ) พร้อมฉากทึบครึ่งหนึ่ง (.app-sidebar-backdrop) ไว้แตะเพื่อปิด
+           เนื้อหาหลัก (.app-main) กว้างเต็มจอเสมอตอนจอแคบ ไม่ต้องแบ่งพื้นที่กับ sidebar อีกต่อไป */
+        .app-hamburger-btn { display: none; }
+        .app-sidebar-backdrop { display: none; }
+        @media (max-width: 900px) {
+            .app-shell { padding: 12px 12px 32px; gap: 0; }
+            .app-hamburger-btn {
+                display: inline-flex; align-items: center; justify-content: center;
+                width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+                background: #f2f2f0; color: #111; border: none; cursor: pointer;
+            }
+            .dark .app-hamburger-btn { background: #262626; color: #f5f5f3; }
+            .app-sidebar {
+                position: fixed; top: 0; left: 0; z-index: 60;
+                width: 260px; max-width: 82vw; height: 100vh;
+                background: #fdfdfc; padding: 16px 14px;
+                box-shadow: none;
+                transform: translateX(-100%);
+                transition: transform .25s ease;
+            }
+            .dark .app-sidebar { background: #1a1a1a; }
+            .app-sidebar.mobile-open { transform: translateX(0); box-shadow: 8px 0 32px rgba(0,0,0,.18); }
+            .app-sidebar-backdrop {
+                display: block; position: fixed; inset: 0; z-index: 55;
+                background: rgba(0,0,0,.42); opacity: 0; pointer-events: none;
+                transition: opacity .25s ease;
+            }
+            .app-sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
+            .app-main { width: 100%; }
+        }
         /* (v88) เดิม .app-sidebar เองเป็นตัว overflow-y:auto ตรงๆ ทำให้พอเนื้อหารวม (nav 8 ปุ่ม + การ์ดท้าย sidebar 2 ใบ) สูงเกิน viewport จริง (จอที่เล็กกว่าตอนออกแบบ/มีแถบเบราว์เซอร์บัง)
            sidebar ทั้งกล่องกลายเป็นเลื่อนได้เอง และการ์ดอธิบายท้ายสุดโดนตัดครึ่ง ขัดกับ comment เดิมด้านบนที่ตั้งใจไว้ว่า sidebar ต้องนิ่ง เลื่อนได้เฉพาะ .app-main เท่านั้น
            ย้าย overflow-y:auto ไปไว้ที่ .app-navlist (ตัวลิสต์เมนูอย่างเดียว) แทน — ถ้าในอนาคตเมนูเยอะขึ้นจนไม่พอจริงๆ จะเลื่อนแค่ส่วนเมนู ส่วนการ์ดท้าย sidebar (flex-shrink:0) จะยังโชว์เต็มเสมอ ไม่โดนตัดอีก */
@@ -428,6 +459,12 @@
         .dark .dash-hero-footnote { color: #8f8f8b; }
         @media (min-width: 860px) { .dash-hero-canvas-wrap { display: block; } }
         @media (max-width: 1024px) { .dash-hero-headline { font-size: 38px; } }
+        /* (v154) จอมือถือแคบมาก (เช่น 360-480px) การ์ดสถิติ 2 ใบเรียงแนวนอนแบบเดิม (flex ไม่มี wrap) จะถูกบีบแคบเกินจน min-width:150px ดันให้ล้นขอบจอ — เรียงเป็นแนวตั้งแทนตอนจอแคบระดับนี้ */
+        @media (max-width: 480px) {
+            .dash-hero-stats { flex-direction: column; }
+            .dash-hero-headline { font-size: 30px; }
+            .dash-hero-sub { font-size: 13.5px; }
+        }
 
         /* ================= Generate section: หัวเรื่อง + panel ซ้าย/ขวา ตรงตาม Mockup — ฟิลด์ของจริงทุกตัวยังอยู่ครบ แค่จัดตำแหน่ง/หน้าตาใหม่ ================= */
         .gen-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 4px 4px 0; }
@@ -969,14 +1006,20 @@
                 <p class="app-sidebar-footer-sub">อนุมัติ รีเซ็ตรหัสผ่าน หรือลบบัญชีผู้ใช้งานอื่นได้จากที่นี่ (เฉพาะ Super Admin)</p>
             </div>
         </aside>
+        <div class="app-sidebar-backdrop" id="appSidebarBackdrop" onclick="closeMobileSidebar_()"></div>
 
         <div class="app-main">
         <div id="appMainHeader" class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 border border-slate-100 dark:border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
+            <div class="flex items-center gap-3">
+                <button type="button" class="app-hamburger-btn" onclick="toggleMobileSidebar_()" aria-label="เปิดเมนู">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+                </button>
+                <div>
                 <h1 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     Intelligent Test Data Simulator
                 </h1>
                 <p class="text-sm text-slate-500 dark:text-slate-300 mt-1">ระบบจำลองข้อมูลทดสอบอัจฉริยะ (Human-in-the-Loop Workflow)</p>
+                </div>
             </div>
             <div class="flex flex-col gap-2 items-start md:items-end w-full md:w-auto">
                 <div class="flex items-center gap-3 flex-wrap justify-start md:justify-end">
@@ -1779,7 +1822,23 @@
         // ดังนั้นแม้ตอนนี้จะไม่เห็นตารางผลลัพธ์อยู่ (เพราะอยู่หน้า "สร้างข้อมูลทดสอบ") กด "สร้างข้อมูลทดสอบ" ปุ่มใหญ่ในฟอร์ม
         // แล้วข้อมูลก็ยังจะถูกเขียนเข้าตารางตามปกติทุกอย่าง แค่ต้องกดสลับมาที่ "Dashboard" เองถึงจะเห็นผลลัพธ์
         // ==========================================
+        // (v154) Responsive: sidebar จอแคบเป็นแผงลอย (off-canvas) เปิด/ปิดด้วยปุ่มแฮมเบอร์เกอร์ + ฉากทึบ (ดู .app-hamburger-btn/.app-sidebar-backdrop ใน <style>)
+        function toggleMobileSidebar_() {
+            const sidebar = document.querySelector('.app-sidebar');
+            const backdrop = document.getElementById('appSidebarBackdrop');
+            if (!sidebar || !backdrop) return;
+            const willOpen = !sidebar.classList.contains('mobile-open');
+            sidebar.classList.toggle('mobile-open', willOpen);
+            backdrop.classList.toggle('show', willOpen);
+        }
+        function closeMobileSidebar_() {
+            const sidebar = document.querySelector('.app-sidebar');
+            const backdrop = document.getElementById('appSidebarBackdrop');
+            if (sidebar) sidebar.classList.remove('mobile-open');
+            if (backdrop) backdrop.classList.remove('show');
+        }
         function showAppSection_(name) {
+            closeMobileSidebar_(); // เลือกแท็บจากเมนูแผงลอยแล้วปิดแผงลงทันที (จอแคบเท่านั้น ไม่มีผลตอนจอกว้าง เพราะ sidebar ไม่ใช่แผงลอยอยู่แล้ว)
             document.querySelectorAll('[data-app-section]').forEach(function (el) {
                 el.classList.toggle('app-section-visible', el.dataset.appSection === name);
             });
