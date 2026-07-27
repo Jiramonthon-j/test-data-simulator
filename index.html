@@ -11,9 +11,9 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Sarabun', sans-serif; transition: background-color 0.2s ease, color 0.2s ease; }
+        body { font-family: 'Noto Sans Thai', sans-serif; transition: background-color 0.2s ease, color 0.2s ease; }
         html { scroll-behavior: smooth; }
         /* ข้อความ placeholder ในช่องกรอกข้อมูลทุกจุดของระบบ เดิมไม่ได้กำหนดสีไว้เฉพาะ จึงใช้สีเทาเข้มตามค่า default ของเบราว์เซอร์ ซึ่งจะกลืนไปกับพื้นหลังช่องกรอกที่เข้มมากในโหมด Dark Mode (bg-slate-900) จนแทบมองไม่เห็นข้อความตัวอย่าง — แก้ให้สว่างขึ้นเฉพาะโหมด Dark เท่านั้น ไม่กระทบโหมด Light */
         .dark input::placeholder, .dark textarea::placeholder { color: #7d8798; opacity: 1; }
@@ -23,11 +23,14 @@
         * { scrollbar-width: none; -ms-overflow-style: none; }
         *::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
-        #logConsoleContainer::-webkit-scrollbar { width: 6px; height: 6px; }
+        #logConsoleContainer::-webkit-scrollbar { width: 6px; height: 6px; display: block; } /* (v122) เติม display:block กันไว้ด้วย เผื่อ *::-webkit-scrollbar ด้านบนตั้ง display:none ค้างไว้ (ไม่ถูก width/height ที่ specific กว่าทับให้อัตโนมัติ) */
         #logConsoleContainer::-webkit-scrollbar-track { background: transparent; }
         #logConsoleContainer::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; transition: background 0.3s ease; }
         #logConsoleContainer:hover::-webkit-scrollbar-thumb { background: #334155; }
         #logConsoleContainer::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* (v143) เดิม (v114/v122) ตั้งใจใส่แถบเลื่อนบางๆ ให้ .app-main โผล่ตอน hover เพื่อเป็นตัวชี้นำว่าเลื่อนได้ — ตอนนี้แจ้งว่าไม่ต้องการแถบเลื่อนนี้แล้ว (เห็นที่ขอบขวาสุดตอนอยู่แท็บ "สร้างข้อมูลทดสอบ") จึงเอาออก กลับไปซ่อนแถบเลื่อนตามกฎ blanket ของทั้งเว็บเหมือนเดิม (ยังเลื่อนได้ปกติ แค่ไม่โชว์แถบ) */
+        .app-main::-webkit-scrollbar { display: none; }
 
         /* SQL Syntax Highlighting Styles */
         .sql-keyword { color: #f43f5e !important; font-weight: bold; }
@@ -131,7 +134,7 @@
             top: 16px;
             display: flex;
             flex-direction: column;
-            gap: 18px;
+            gap: 12px;
             padding: 8px 6px;
             overflow: hidden;
             min-height: 0;
@@ -140,10 +143,16 @@
            sidebar ทั้งกล่องกลายเป็นเลื่อนได้เอง และการ์ดอธิบายท้ายสุดโดนตัดครึ่ง ขัดกับ comment เดิมด้านบนที่ตั้งใจไว้ว่า sidebar ต้องนิ่ง เลื่อนได้เฉพาะ .app-main เท่านั้น
            ย้าย overflow-y:auto ไปไว้ที่ .app-navlist (ตัวลิสต์เมนูอย่างเดียว) แทน — ถ้าในอนาคตเมนูเยอะขึ้นจนไม่พอจริงๆ จะเลื่อนแค่ส่วนเมนู ส่วนการ์ดท้าย sidebar (flex-shrink:0) จะยังโชว์เต็มเสมอ ไม่โดนตัดอีก */
         .brandmark { flex-shrink: 0; }
-        .app-navlist { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+        /* (v142) เอาแถบเลื่อนที่โชว์ไว้ (v135) ออกตามที่แจ้ง — ตอนนี้ปุ่มเมนูพอดีไม่ต้องเลื่อนแล้ว (v136) จึงไม่จำเป็นต้องมีแถบเลื่อนให้เห็นอีก กลับไปใช้กฎซ่อนแถบเลื่อนของทั้งเว็บตามเดิม (ยังเลื่อนได้ปกติถ้าเนื้อหาล้นในอนาคต แค่ไม่โชว์แถบ) */
+        .app-navlist { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
         .app-sidebar-footer { flex-shrink: 0; }
-        .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; overflow-x: hidden; min-height: 0; }
-        /* กล่องหัวข้อ "Intelligent Test Data Simulator" ล็อกไว้ด้านบนเสมอ ไม่เลื่อนตามเนื้อหาข้างล่างที่เลื่อนอยู่ใน .app-main (position:sticky เทียบกับกรอบที่เลื่อนได้คือ .app-main เอง) */
+        /* (v145) แก้ปัญหา "เนื้อหาที่เลื่อนโผล่หลัง Header" ให้ถูกจุดจริงๆ: เดิม .app-main เป็นทั้งกรอบที่เลื่อน "และ" เป็นที่อยู่ของ Header (sticky) พร้อมกัน มุมโค้งของ Header เลยมีโอกาสชนขอบบนตอนเลื่อนพอดี เห็นเนื้อหา/พื้นหลังทะลุออกมาได้
+           เปลี่ยนใหม่: .app-main เองไม่เลื่อนแล้ว (แค่เป็นกรอบนิ่งๆถือ Header + พื้นที่เนื้อหา) ย้ายการเลื่อนจริงไปไว้ที่ .app-content-scroll (กล่องใหม่ที่ห่อเฉพาะเนื้อหาแต่ละแท็บ ไม่รวม Header) แทน
+           ผลคือ Header กับพื้นที่เลื่อนกลายเป็นคนละกรอบกันเลย เนื้อหาที่เลื่อนอยู่ใน .app-content-scroll จะถูกตัด/บังด้วยขอบกล่องของมันเองก่อนเสมอ ไม่มีทางเลื่อนไปโผล่ทับ/หลัง Header ได้อีกต่อไป (ไม่ต้องพึ่งการขยับตำแหน่ง+แผ่นปิดช่องแบบที่เคยลองแล้วซับซ้อน) */
+        .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 24px; overflow: hidden; min-height: 0; }
+        .app-content-scroll { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+        .app-content-scroll::-webkit-scrollbar { display: none; }
+        /* กล่องหัวข้อ "Intelligent Test Data Simulator" อยู่นิ่งด้านบนเสมอ (ตอนนี้ .app-main ไม่เลื่อนเองแล้ว sticky ตรงนี้แทบไม่มีผลจริง แต่เก็บไว้เผื่อกรณี fallback ไม่เสียหายอะไร) */
         #appMainHeader { position: sticky; top: 0; z-index: 5; flex-shrink: 0; }
 
         .brandmark { display: flex; align-items: center; gap: 10px; padding: 0 10px; color: #111; }
@@ -152,13 +161,13 @@
         .brand-sub { display: block; font-weight: 400; color: #5b5b58; font-size: 11px; }
         .dark .brand-sub { color: #cfcfcb; }
 
-        .app-navlist { display: flex; flex-direction: column; gap: 4px; }
+        .app-navlist { display: flex; flex-direction: column; gap: 2px; }
         .app-navitem {
             display: flex; align-items: center; gap: 12px;
-            padding: 11px 14px; border-radius: 999px;
+            padding: 9px 14px; border-radius: 999px;
             color: #5b5b58; font-size: 14.5px; font-weight: 500;
             cursor: pointer; text-decoration: none; border: none; background: none;
-            width: 100%; text-align: left; font-family: 'Sarabun', sans-serif;
+            width: 100%; text-align: left; font-family: 'Noto Sans Thai', sans-serif;
             position: relative;
         }
         .app-navitem svg { flex-shrink: 0; opacity: .75; }
@@ -166,12 +175,22 @@
         .dark .app-navitem { color: #cfcfcb; }
         .dark .app-navitem:hover { background: #262626; color: #f5f5f3; }
         .app-navitem-btn { cursor: pointer; }
+        /* (v90) ปุ่มเมนู sidebar เป็น <button> กว้างเต็ม 100% ของ .app-navlist พอคลิกแล้วเบราว์เซอร์วาด focus outline เริ่มต้นให้เอง (โผล่เป็นเส้นขอบดำ) ซึ่งไปชนขอบซ้าย-ขวาของ sidebar พอดี (outline วาดออกด้านนอกกรอบปุ่มตามค่าเริ่มต้น + .app-sidebar เป็น overflow:hidden) เลยดูเหมือนถูกตัด/โดนครอบขอบ
+           คลิกด้วยเมาส์: ไม่ต้องมี ring เลย (ใช้ background ของ .app-navitem-active/:hover บอกสถานะอยู่แล้ว) — ซ่อน outline ด้วย :focus:not(:focus-visible)
+           กดคีย์บอร์ด (Tab): ยังคงมี ring ให้เห็นเพื่อการเข้าถึง (accessibility) แต่ดึงเข้ามาไว้ด้านในกรอบปุ่มแทน (outline-offset ติดลบ) ไม่ให้ล้น/โดนตัดที่ขอบ sidebar อีก */
+        .app-navitem-btn:focus { outline: none; }
+        .app-navitem-btn:focus-visible { outline: 2px solid #111; outline-offset: -3px; border-radius: 999px; }
+        .dark .app-navitem-btn:focus-visible { outline-color: #f5f5f3; }
         .app-navitem-active { background: #f2f2f0; color: #111; font-weight: 600; }
         .dark .app-navitem-active { background: #262626; color: #f5f5f3; }
         .app-navitem-active svg { opacity: 1; }
-        .app-navitem-dot { width: 6px; height: 6px; border-radius: 50%; background: #111; position: absolute; left: -2px; display: none; }
+        /* (v90) เดิม left:-2px ให้จุดวงกลมยื่นออกไปทางซ้ายของตัวปุ่ม 2px ตอนที่ overflow-y:auto ยังอยู่ที่ .app-sidebar (มี padding 8px 6px ของตัวเอง กันไว้พอดี) แต่หลังย้าย overflow-y:auto มาไว้ที่ .app-navlist แทน (ดู comment v88 ด้านบน) กลายเป็นว่า .app-navlist เองไม่มี padding กันเผื่อ ส่วนที่ยื่นออกไปนอกกรอบปุ่ม (-2px) เลยโดนตัดทิ้งไปครึ่งนึง เหลือจุดวงกลมไม่เต็มก้อน
+           แก้โดยขยับจุดเข้ามาอยู่ในกรอบปุ่มเอง (left เป็นค่าบวก) แทนที่จะยื่นออกนอกกรอบ ไม่ต้องพึ่ง padding ของ container ใดๆ อีก จึงไม่มีทางโดนตัดซ้ำอีกไม่ว่า container จะ overflow แบบไหน */
+        .app-navitem-dot { width: 6px; height: 6px; border-radius: 50%; background: #111; position: absolute; left: 1px; display: none; }
         .dark .app-navitem-dot { background: #f5f5f3; }
         .app-navitem-active .app-navitem-dot { display: block; }
+        /* (v91) ตามที่ผู้ใช้ตัดสินใจ: เอาจุดวงกลมบอกสถานะ active ออกทั้งหมด (โดยเฉพาะโหมด Dark Mode ที่จุดสีขาวดูเป็นก้อนสี่เหลี่ยมไม่กลมสนิท ไม่สวย) — ซ่อนถาวรด้วย CSS แทนการลบ element/โค้ด JS ที่ toggle class .app-navitem-active ออก (โค้ดเดิมยังทำงานเหมือนเดิมทุกจุด แค่ผลลัพธ์ทางสายตาไม่โชว์จุดนี้อีกต่อไป) พื้นหลังพิลล์ + ตัวหนาของปุ่มที่ active ก็บอกสถานะชัดเจนอยู่แล้วโดยไม่ต้องมีจุดนี้ */
+        .app-navitem-dot { display: none !important; }
         .app-navitem-badge { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: #e11d48; color: #fff; font-size: 10px; font-weight: 700; line-height: 17px; text-align: center; display: none; }
         .app-navitem-badge.show { display: block; }
         .dark .app-navitem-badge { background: #f43f5e; color: #111; }
@@ -182,38 +201,111 @@
         /* ขยายกล่อง "ตัวอย่างหน้าจอตรวจสอบข้อมูล (Data Preview)" ให้เต็มพื้นที่ที่เหลือของ .app-main (ชิดขอบล่างเท่ากับความสูงของ sidebar ฝั่งซ้ายที่ยืดเต็มจออยู่แล้ว)
            แล้วให้กรอบตารางข้างในขยายตามไปด้วย (flex:1) ส่วนแถบค้นหา/หัวข้อ/pagination ด้านบน-ล่างคงขนาดปกติไม่ยืด */
         #sectionDashboard.app-section-visible { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-        #sectionDataPreview.app-section-visible { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-        #resultsSection { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-        #resultsSection > .overflow-x-auto { flex: 1 1 auto; min-height: 150px; overflow-y: auto; }
+        /* (v89) แท็บ Dashboard ล็อคขนาดพอดีกับพื้นที่ที่เหลืออยู่แล้ว (dash-hero ด้านบน) แต่ .app-main ยังเป็น overflow-y:auto แบบ global (เผื่อแท็บอื่นที่เนื้อหายาวกว่าจอ) ทำให้บางจอ/บาง zoom ยังมีแถบเลื่อนโผล่ที่กล่องเนื้อหาแท็บนี้ได้ ทั้งที่ไม่ควรเลื่อนเลย
+           ล็อคเฉพาะตอนแท็บ Dashboard เปิดอยู่ (ไม่แตะ .app-main ของแท็บอื่นที่ยังต้องเลื่อนได้ตามปกติ) ด้วย :has() เช็คว่า section ลูกที่กำลังโชว์คือ Dashboard หรือไม่ */
+        .app-content-scroll:has(#sectionDashboard.app-section-visible) { overflow-y: hidden; }
+        /* (v147) เดิมล็อกให้ #sectionDataPreview/#resultsSection/#dataTableScrollWrap "หดพอดีจอ" เสมอ (flex:1 1 auto + min-height:0) แล้วให้ #dataTableScrollWrap เป็นตัวเลื่อนภายในแทนถ้าตารางแถวเยอะ
+           ตอนนี้อยากให้เห็นครบทุกแถว (เช่น 10 แถว) โดยไม่ต้องเลื่อนในกล่องเล็กๆ อีกต่อไป เปลี่ยนแนวทางเป็นปล่อยให้แท็บนี้สูงได้ตามเนื้อหาจริง (ไม่บังคับหดพอดีจอ) แล้วถ้าเนื้อหารวมทั้งหน้ายาวเกินจอจริงๆ ให้ .app-content-scroll (กรอบเลื่อนของทั้งแท็บ) เป็นตัวเลื่อนแทน ไม่ใช่กล่องตารางเล็กๆ ข้างใน
+           (v112 เดิมกันปุ่มบันทึกหลุดกรอบตอนข้อมูลน้อย เกิดจากการถูกบีบให้เตี้ยกว่าจริงโดย parent — พอไม่มีใครบีบให้เตี้ยกว่าจริงอีกแล้ว ปัญหานั้นไม่มีทางเกิดซ้ำ เลยตัด overflow:hidden ที่เคยแก้เฉพาะจุดออกได้ด้วย) */
+        /* (v148) อยากให้กล่อง Data Preview ขยายชิดขอบล่างของ sidebar เหมือนเดิม (ตอนข้อมูลน้อย/ไม่มีข้อมูล) แต่ต้องไม่ทำให้ตารางแถวเยอะๆ ถูกบีบจนต้องเลื่อนในกล่องเล็กอีก (v147)
+           ใช้ flex-grow:1 เฉยๆ โดย "ไม่ใส่ min-height:0" — ค่าเริ่มต้นของ flex item (min-height:auto) คือห้ามหดเกินขนาดเนื้อหาจริงอยู่แล้ว จึงยืดเติมพื้นที่ว่างได้เวลาเนื้อหาสั้น แต่ถ้าเนื้อหายาวกว่าพื้นที่ที่มี ก็จะโตเกินและดันให้ .app-content-scroll เป็นตัวเลื่อนแทน ไม่มีทางถูกบีบให้เลื่อนภายในอีก */
+        #sectionDataPreview.app-section-visible { display: flex; flex-direction: column; flex-grow: 1; }
+        #resultsSection { display: flex; flex-direction: column; flex-grow: 1; }
+        /* (v149) #resultsSection โตแล้ว แต่ลูกๆข้างในไม่มีใครโตตาม พื้นที่ว่างเลยไปกองรวมเป็นก้อนเดียวหลังสุด (เห็นเป็นช่องว่างเปล่าเหนือแถวรหัสผ่าน/ปุ่มบันทึก)
+           ให้เฉพาะกล่องตาราง (.overflow-x-auto) เป็นตัวที่โตเติมพื้นที่ว่างแทน (เหมือน #resultsSection เอง คือ flex-grow อย่างเดียวไม่ใส่ min-height:0 จึงไม่มีทางถูกบีบเตี้ยกว่าเนื้อหาจริงเวลาแถวเยอะ) ลูกอื่นๆ (แถบค้นหา/pagination/แถวบันทึก) ไม่ต้องโตตาม คงขนาดปกติ */
+        #resultsSection > .overflow-x-auto { flex-grow: 1; }
         /* ขยายกล่อง "ตัวอย่างสคริปต์คำสั่ง SQL (Generated Query Preview)" ให้เต็มพื้นที่ที่เหลือของ .app-main เช่นเดียวกับหน้าตรวจสอบข้อมูล — หน้านี้เลื่อนไม่ได้อยู่แล้วเพราะ .app-main คือกรอบที่เลื่อนได้จริงเพียงกรอบเดียว (ดูด้านบน) */
         #sectionSqlPreview.app-section-visible { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
         #sqlResultsCard { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-        /* ห้ามเลื่อนข้างในกล่องนี้เด็ดขาด (overflow-y:hidden แทน auto) — จำนวนบรรทัดต่อหน้าต้องพอดีกับความสูงกล่องเป๊ะๆ อยู่แล้ว (ดู sqlRowsPerPage) ถ้าเกินให้โดนตัดแทนที่จะมีแถบเลื่อนโผล่มา */
+        /* ห้ามเลื่อนข้างในกล่องนี้เด็ดขาด (overflow-y:hidden แทน auto) — จำนวนบรรทัดต่อหน้าคำนวณสดจากความสูงกล่องจริงเสมอ (v119: ดู recalcSqlRowsPerPage_() ในสคริปต์) เลยพอดีกับกล่องเป๊ะๆ ทุกขนาดจอ ไม่มีทางเกินจนต้องมีแถบเลื่อนโผล่มา */
         #sqlBlock { flex: 1 1 auto; min-height: 150px; overflow-y: hidden; }
         /* 3 แท็บที่แปลงมาจาก Popup เดิม (ประวัติ Commit / รายงานคุณภาพ / จัดการผู้ใช้งาน) ใช้แนวทางเดียวกับ Data Preview/SQL Preview ด้านบนทุกจุด: กล่องนอก (data-app-section) ยืดเต็มพื้นที่ .app-main ที่เหลือ แล้วการ์ดข้างในยืดตาม ส่วนเนื้อหาตรงกลางเลื่อนได้เอง */
         #sectionQualityReport.app-section-visible,
         #sectionCommitHistory.app-section-visible,
-        #sectionUserManagement.app-section-visible { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-        #qualityReportModal, #datasetHistoryModal, #adminUserPanelModal { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-        #qualityReportBody, #datasetHistoryBody, #adminUserPanelBody { min-height: 150px; }
+        #sectionUserManagement.app-section-visible { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; min-width: 0; }
+        #qualityReportModal, #datasetHistoryModal, #adminUserPanelModal { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; min-width: 0; }
+        #qualityReportBody, #datasetHistoryBody, #adminUserPanelBody { min-height: 150px; min-width: 0; }
+        /* (v152) ตาราง "รายละเอียดชุดข้อมูล" มีแถบเลื่อนแนวนอนที่ห่อไว้แล้ว (.dh-detail-table-scroll) แต่ผู้ใช้แจ้งว่ายังไม่เห็นแถบเลื่อนโผล่จริง — เพิ่ม min-width:0 ทุกชั้น (section/modal/body) กันไว้ เผื่อกล่องเหล่านี้ (เป็น flex item ใน flex column ทุกชั้น) ถูกขยายกว้างตามความกว้างเนื้อหาจริงของตาราง (ค่าเริ่มต้น min-width:auto ของ flex item) แทนที่จะยอมให้ตัวห่อข้างในเป็นคนจัดการล้น/เลื่อนเอง
+           และเปลี่ยน .dh-detail-table-scroll จาก overflow-x:auto เป็น overflow-x:scroll เพื่อบังคับให้จองพื้นที่/แสดงแถบเลื่อนเสมอเมื่อมีเนื้อหาล้น ไม่ต้องพึ่งการตรวจจับ overflow อัตโนมัติของเบราว์เซอร์ */
+        /* (v92) เคอร์เซอร์รูปมือบอกใบ้ว่าคลิกค้างแล้วลากเพื่อเลื่อนดูคอลัมน์ที่ล้นจอได้ (ดูฟังก์ชัน enableDragScroll_ ในสคริปต์ด้านล่าง) — เปลี่ยนเป็นรูปมือกำ (grabbing) ระหว่างที่กำลังลากจริงๆ อยู่
+           (v95) เดิม cursor:grab โชว์ตลอดไม่ว่าเนื้อหาจะล้นกรอบจริงหรือไม่ — เปลี่ยนเป็นโชว์เฉพาะตอนที่ JS เช็คแล้วว่าเนื้อหาล้นกรอบจริง (.can-drag-scroll ถูก toggle โดย syncGrabCursor_) เท่านั้น ถ้าไม่ล้นกรอบ cursor จะเป็นค่าเริ่มต้นปกติเหมือนกล่องที่ล็อคอยู่ */
+        /* (v151) ตาราง "รายละเอียดชุดข้อมูล" (renderDatasetDetailStep) เดิมฝัง <table> ตรงใน #datasetHistoryBody เลย ซึ่งกล่องนั้นสูงเต็มการ์ด (flex-1) แต่ตารางมีแค่ไม่กี่แถว เลยเหลือพื้นที่ว่างเยอะด้านล่าง
+           ทำให้แถบเลื่อนแนวนอน (::-webkit-scrollbar ด้านล่าง) ไปโผล่ที่ขอบล่างสุดของกล่องใหญ่ ไกลจากตารางมาก แทบมองไม่เห็น ผู้ใช้เลยไม่รู้ว่าเลื่อนได้ ต้องลากเอาเอง
+           ห่อ <table> ด้วย div.dh-detail-table-scroll (สูงพอดีเนื้อหาตาราง ไม่ยืดเต็มกล่อง) แล้วให้ตัวนี้เป็นกรอบเลื่อนแนวนอนแทน แถบเลื่อนจะติดอยู่ใต้ตารางทันที เห็นและลากได้ง่ายขึ้น */
+        .dh-detail-table-scroll { overflow-x: scroll; min-width: 0; }
+        /* (v153) แถบเลื่อนของเราเอง (ไม่ใช่ ::-webkit-scrollbar native) กันปัญหาบางเบราว์เซอร์/OS ซ่อนแถบเลื่อนจริงตามการตั้งค่าระบบ — เห็นและลากได้ชัวร์ทุกที่ */
+        .dh-detail-hbar-track { display: none; position: relative; height: 8px; margin-top: 8px; background: #e5e7eb; border-radius: 4px; cursor: pointer; }
+        .dh-detail-hbar-track.show { display: block; }
+        .dark .dh-detail-hbar-track { background: #334155; }
+        .dh-detail-hbar-thumb { position: absolute; top: 0; left: 0; height: 100%; min-width: 30px; background: #94a3b8; border-radius: 4px; cursor: grab; }
+        .dh-detail-hbar-thumb:active { cursor: grabbing; background: #64748b; }
+        .dark .dh-detail-hbar-thumb { background: #64748b; }
+        .dark .dh-detail-hbar-thumb:active { background: #94a3b8; }
+        .dh-detail-table-scroll::-webkit-scrollbar { width: 0 !important; height: 6px !important; display: block !important; }
+        .dh-detail-table-scroll::-webkit-scrollbar-track { background: transparent !important; }
+        .dh-detail-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1 !important; border-radius: 4px !important; }
+        .dh-detail-table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8 !important; }
+        .dark .dh-detail-table-scroll::-webkit-scrollbar-thumb { background: #334155 !important; }
+        .dark .dh-detail-table-scroll::-webkit-scrollbar-thumb:hover { background: #475569 !important; }
+        #dataTableScrollWrap.can-drag-scroll, #qualityReportBody.can-drag-scroll, #datasetHistoryBody.can-drag-scroll, #adminUserPanelBody.can-drag-scroll { cursor: grab; }
+        #dataTableScrollWrap.drag-scrolling, #qualityReportBody.drag-scrolling, #datasetHistoryBody.drag-scrolling, #adminUserPanelBody.drag-scrolling { cursor: grabbing; user-select: none; }
+        /* (v121) กล่อง 4 จุดนี้เลื่อนได้ทั้งแนวนอน (คอลัมน์ล้นจอ ลากด้วย enableDragScroll_) และแนวตั้ง (overflow-auto เผื่อเนื้อหาสูงเกิน) แต่เดิมแถบเลื่อนถูกซ่อนหมดทุกทิศทาง (กฎ * ด้านบน)
+           ตามที่แจ้ง: อยากเห็นแถบเลื่อน "แนวนอน" (ช่วยบอกใบ้ว่าลากดูคอลัมน์ที่ล้นได้สะดวกขึ้น) แต่ไม่ต้องมีแถบเลื่อน "แนวตั้ง" (ขึ้นลง)
+           ทำแยกทิศทางได้เฉพาะ Chrome/Edge/Safari ผ่าน ::-webkit-scrollbar (width ควบคุมความหนาแถบแนวตั้ง, height ควบคุมความหนาแถบแนวนอน) — Firefox (scrollbar-width) แยกทิศทางไม่ได้ เลยปล่อยเป็น none (ซ่อนทั้งคู่) เหมือนเดิมไปก่อน ไม่ regression จากเดิม
+           (v122) รอบก่อนลืม override "display" — กฎ *::-webkit-scrollbar ด้านบนสุดตั้ง display:none ไว้ด้วย (ไม่ใช่แค่ width/height:0) แม้ selector นี้จะ specific กว่าแล้วจน width/height ชนะ แต่ display ไม่ได้ถูกสั่งใหม่เลยยัง none ค้างอยู่ แถบเลยไม่โผล่ทั้งที่ height ตั้งไว้ 6px แล้ว ต้องสั่ง display:block ทับด้วยเสมอ */
+        #dataTableScrollWrap::-webkit-scrollbar, #qualityReportBody::-webkit-scrollbar, #datasetHistoryBody::-webkit-scrollbar, #adminUserPanelBody::-webkit-scrollbar { width: 0 !important; height: 6px !important; display: block !important; }
+        #dataTableScrollWrap::-webkit-scrollbar-track, #qualityReportBody::-webkit-scrollbar-track, #datasetHistoryBody::-webkit-scrollbar-track, #adminUserPanelBody::-webkit-scrollbar-track { background: transparent !important; }
+        #dataTableScrollWrap::-webkit-scrollbar-thumb, #qualityReportBody::-webkit-scrollbar-thumb, #datasetHistoryBody::-webkit-scrollbar-thumb, #adminUserPanelBody::-webkit-scrollbar-thumb { background: #cbd5e1 !important; border-radius: 4px !important; }
+        #dataTableScrollWrap::-webkit-scrollbar-thumb:hover, #qualityReportBody::-webkit-scrollbar-thumb:hover, #datasetHistoryBody::-webkit-scrollbar-thumb:hover, #adminUserPanelBody::-webkit-scrollbar-thumb:hover { background: #94a3b8 !important; }
+        .dark #dataTableScrollWrap::-webkit-scrollbar-thumb, .dark #qualityReportBody::-webkit-scrollbar-thumb, .dark #datasetHistoryBody::-webkit-scrollbar-thumb, .dark #adminUserPanelBody::-webkit-scrollbar-thumb { background: #334155 !important; }
+        .dark #dataTableScrollWrap::-webkit-scrollbar-thumb:hover, .dark #qualityReportBody::-webkit-scrollbar-thumb:hover, .dark #datasetHistoryBody::-webkit-scrollbar-thumb:hover, .dark #adminUserPanelBody::-webkit-scrollbar-thumb:hover { background: #475569 !important; }
         /* ปุ่ม "ปิด" เดิมของ Popup ไม่มีความหมายอีกต่อไปเมื่อกลายเป็นแท็บ (สลับแท็บอื่นแทนการปิด) ซ่อนถาวรด้วย CSS แทนการลบ element ออก เพื่อไม่ให้ฟังก์ชัน JS เดิม (closeQualityReportModal/closeDatasetHistoryModal และการสลับ class ตามขั้นตอนต่างๆ) พังเพราะหา element ไม่เจอ */
         #qrCloseBtn, #dhCloseBtn { display: none !important; }
+        /* (v89) แถบล่างสุดของ "รายงานคุณภาพ"/"ประวัติ Commit" (border-t เดิม) โผล่เป็นเส้นขีดลอยๆ เหนือพื้นที่ว่างตอนขั้นตอนแรก (แค่เลือกวันที่) เพราะปุ่มทั้งหมดในแถบนี้ยังซ่อนอยู่ (.hidden) จนกว่าจะเลือกวันที่/รอบ Commit จริง
+           ซ่อนเส้นขีดนี้เฉพาะตอนไม่มีปุ่มไหนโชว์อยู่เลย ส่วนขั้นตอนถัดไปที่มีปุ่มโผล่มาจริง เส้นแบ่งยังอยู่ตามเดิมเพื่อแยกแถบปุ่มจากเนื้อหาด้านบน
+           (v90) แก้บั๊ก: ขั้นตอนเลือกวันที่ (renderQualityDateListStep/dhBackBtn init) มีโค้ด JS เดิมที่ลบ .hidden ออกจาก #qrCloseBtn/#dhCloseBtn ด้วย (เผื่อเป็นปุ่ม "ปิด" แบบ Popup เก่า) ทั้งที่ปุ่มนี้ถูกบังคับซ่อนถาวรด้วย display:none!important ไปแล้ว (ดูกฎด้านบน)
+           ทำให้ :has(button:not(.hidden)) เดิมเข้าใจผิดว่ามีปุ่มโชว์อยู่ เส้นเลยไม่หายจริงตามที่ตั้งใจ — เพิ่ม :not(#qrCloseBtn)/:not(#dhCloseBtn) กันปุ่มที่ถูกซ่อนถาวรนี้ไม่ให้นับรวมด้วย */
+        #qrFooterBar, #dhFooterBar { border-top-color: transparent; }
+        #qrFooterBar:has(button:not(.hidden):not(#qrCloseBtn)) { border-top-color: #f1f5f9; }
+        #dhFooterBar:has(button:not(.hidden):not(#dhCloseBtn)) { border-top-color: #f1f5f9; }
+        .dark #qrFooterBar:has(button:not(.hidden):not(#qrCloseBtn)) { border-top-color: #334155; }
+        .dark #dhFooterBar:has(button:not(.hidden):not(#dhCloseBtn)) { border-top-color: #334155; }
+        /* (v93) ปุ่ม "← เลือกวันอื่น/เลือกรอบอื่น" (qrBackBtn/dhBackBtn) ใช้คลาสสีเดียวกับปุ่มเทากลางๆ ทั่วทั้งระบบ (bg-slate-100 dark:bg-slate-700 ...) เป๊ะๆ ทุกตัวอักษร
+           แต่ตอน Dark Mode กลับโชว์เป็นสีอ่อนจางๆ แบบ Light Mode ไม่เปลี่ยนตาม (ทั้งที่ปุ่มอื่นๆ ที่ใช้คลาสเดียวกันเป๊ะแบบนี้ในหน้าอื่นเปลี่ยนสีถูกต้องปกติดี) — กำหนดสีตรงๆ ด้วย id selector ทับอีกชั้น กันไว้ไม่ให้พึ่ง Tailwind class ฝั่งเดียวอีก รับประกันว่าจะตรงกับปุ่มเทาอื่นๆ ในระบบเป๊ะทั้ง Light/Dark Mode แน่นอน
+           (v94) รอบก่อนแก้แล้วผู้ใช้แจ้งว่ายังไม่เปลี่ยน เลยเติม !important ทุกเส้นกันไว้อีกชั้น ตัดปัญหาเรื่อง specificity/ลำดับ CSS ไปเลย ไม่มีทางถูกทับซ้ำได้อีกไม่ว่าจะเกิดจากอะไร */
+        #qrBackBtn, #dhBackBtn { background: #f1f5f9 !important; color: #475569 !important; }
+        #qrBackBtn:hover, #dhBackBtn:hover { background: #e2e8f0 !important; }
+        .dark #qrBackBtn, .dark #dhBackBtn { background: #334155 !important; color: #cbd5e1 !important; }
+        .dark #qrBackBtn:hover, .dark #dhBackBtn:hover { background: #475569 !important; }
+        /* (v96) บั๊กเดียวกัน (v93/v94 ด้านบน) เจอซ้ำอีกที่ปุ่ม "โหลดมาใช้"/ปุ่มรีเฟรชรายการ Prompt — ตรวจดูแล้วทั้งระบบมีจุดอื่นๆ อีกหลายสิบจุดที่ใช้คู่คลาส Tailwind เดียวกันเป๊ะ (bg-slate-100+dark:bg-slate-700, text-slate-600+dark:text-slate-300) เพื่อให้เป็นปุ่มเทาอ่อน/เทาเข้มสลับ Light-Dark
+           แทนที่จะไล่แก้ทีละปุ่มด้วย id selector ไปเรื่อยๆ ทุกครั้งที่มีคนแจ้ง แก้ที่ต้นตอทีเดียวทั้งระบบเลย: override คลาส "ฐาน" (bg-slate-100 / text-slate-600 / hover:bg-slate-200) ตรงๆ เฉพาะตอนอยู่ใน Dark Mode แทนที่จะพึ่ง Tailwind dark: variant ของแต่ละปุ่มอีกต่อไป
+           ไอคอน SVG ข้างในปุ่มพวกนี้ใช้ stroke="currentColor" อยู่แล้วทุกจุด (ไม่ได้กำหนดสีของตัวเอง) พอสีตัวอักษร (color) ของปุ่มถูกต้องแล้ว ไอคอนจะเปลี่ยนสีตามไปด้วยอัตโนมัติ ไม่ต้องแก้ไอคอนแยก
+           เว้น :not(.dark\:text-white) ไว้ให้ปุ่มอีกกลุ่ม (Dark Mode toggle, ออกจากระบบ, ขอลบบัญชี ฯลฯ) ที่ตั้งใจให้ตัวอักษรเป็นสีขาวล้วนตอน Dark Mode (dark:text-white) ไม่ให้โดนทับเป็นเทาอ่อนไปด้วย */
+        .dark .bg-slate-100 { background-color: #334155 !important; }
+        .dark .text-slate-600:not(.dark\:text-white) { color: #cbd5e1 !important; }
+        .dark .hover\:bg-slate-200:hover { background-color: #475569 !important; }
 
-        .app-sidebar-footer { background: #fff; border-radius: 16px; padding: 13px; }
+        /* (v134) ลดขนาดการ์ดท้าย sidebar (Secure Mode + การ์ดอธิบายของแต่ละแท็บ) ลงเล็กน้อยทุกจุด (padding/ไอคอน/ตัวอักษร) เพราะตอนโชว์คู่กัน 2 ใบ (แท็บไหนก็ตาม) รวมความสูงเยอะเกินไป จนไปบังปุ่มเมนูตัวสุดท้าย (รายงานคุณภาพ) ในจอที่เตี้ยลง
+           (v137) พอปุ่มเมนูพอดีไม่ต้องเลื่อนแล้ว (v136 ทำให้ .app-navlist สูงเท่าเนื้อหาจริง) เหลือพื้นที่ว่างด้านล่าง — อยากให้การ์ดกลุ่มนี้ "ขยาย" ขึ้นมาเติมเต็มพื้นที่นั้นเอง (ไม่ใช่แค่เลื่อน/ขยับตำแหน่งด้วย margin) จึงให้ flex-grow:1 แบ่งพื้นที่ว่างที่เหลือคืนมาเป็นความสูงของการ์ด แล้วจัดเนื้อหาไว้กึ่งกลางแนวตั้งของกล่องที่โตขึ้น
+           (v138) รอบแรกใส่ display:flex ลงบน .app-sidebar-footer เฉยๆ ดันไปชนกับกฎซ่อน/โชว์การ์ดของแต่ละแท็บ ([data-app-section]{display:none} / .app-section-visible{display:block} บรรทัดด้านบน) — specificity เท่ากันแต่กฎนี้มาทีหลังในไฟล์เลยชนะ ทำให้การ์ดของทุกแท็บโผล่มาพร้อมกันหมด ปุ่มเมนูเลยหายไป
+           แก้โดยเจาะจงใส่ flex ให้เฉพาะการ์ด Secure Mode (ไม่มี data-app-section เลย จึงไม่ชนกฎซ่อน/โชว์อยู่แล้ว) กับการ์ดของแท็บที่ "กำลังโชว์อยู่จริง" เท่านั้น (.app-section-visible) ส่วนการ์ดที่ควรซ่อนจะไม่โดน display:flex ทับ ยังคง display:none ตามเดิม */
+        /* (v140) v139 ขยายทั้งกล่อง(padding/ไอคอน)และตัวอักษรไปด้วยกัน ทำให้กล่องใหญ่เกินจนบังปุ่มเมนูอีกรอบ — กลับไปใช้ขนาดกล่อง/ไอคอนเท่าเดิม (v134) แค่ขยายเฉพาะตัวอักษรให้พอดีกับกล่อง */
+        .app-sidebar-footer { background: #fff; border-radius: 12px; padding: 8px; }
+        .app-sidebar-footer:not([data-app-section]), .app-sidebar-footer.app-section-visible {
+            flex-grow: 1; display: flex; flex-direction: column; justify-content: center;
+        }
         .dark .app-sidebar-footer { background: #1c1c1c; }
         .app-sidebar-footer-icon {
-            width: 26px; height: 26px; border-radius: 8px; background: #f2f2f0;
-            display: flex; align-items: center; justify-content: center; margin-bottom: 8px;
+            width: 24px; height: 24px; border-radius: 7px; background: #f2f2f0;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 6px;
         }
         .app-sidebar-footer-icon svg { width: 13px; height: 13px; }
         .dark .app-sidebar-footer-icon { background: #262626; }
-        .app-sidebar-footer-title { font-size: 11.5px; font-weight: 700; line-height: 1.3; margin: 0 0 4px; color: #111; }
+        .app-sidebar-footer-title { font-size: 12px; font-weight: 700; line-height: 1.25; margin: 0 0 3px; color: #111; }
         .dark .app-sidebar-footer-title { color: #f5f5f3; }
-        .app-sidebar-footer-sub { font-size: 10.5px; color: #5b5b58; line-height: 1.35; margin: 0; }
+        .app-sidebar-footer-sub { font-size: 11px; color: #5b5b58; line-height: 1.35; margin: 0; }
         .dark .app-sidebar-footer-sub { color: #cfcfcb; }
-        .app-sidebar-footer-version { font-size: 9px; opacity: .68; margin: 4px 0 0; }
-        /* ดันกลุ่มการ์ดท้าย sidebar (Secure Mode + การ์ดอธิบายของแท็บนั้นๆ) ลงไปชิดขอบล่างให้ตรงกับกล่องฝั่งขวา — ใช้ margin-top:auto บน flex item เดียว (ไม่ยืดขนาดตัวการ์ด) จึงไม่เสี่ยงล้นขอบเหมือนวิธี flex:1 เดิม, สลับเปิด/ปิดผ่าน showAppSection_ ตามแท็บที่ใช้งานอยู่ */
-        .app-sidebar-footer-pin-bottom { margin-top: auto; }
+        .app-sidebar-footer-version { font-size: 8.5px; opacity: .68; margin: 2px 0 0; }
 
         @media (max-width: 1024px) {
             .app-shell { flex-direction: column; }
@@ -224,6 +316,7 @@
             #dashboardScreen { height: auto; overflow: visible; }
             .app-shell { height: auto; }
             .app-main { overflow: visible; min-height: auto; }
+            .app-content-scroll { overflow: visible; min-height: auto; }
             .app-sidebar { overflow: visible; }
         }
 
@@ -296,7 +389,7 @@
         .dark .dash-hero-canvas-wrap { background: #1c1c1c; }
         .dash-hero-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
         .dash-hero-right {
-            flex: 1; padding: 6px 4px;
+            flex: 1; padding: 0 4px;
             display: flex; flex-direction: column; gap: 26px; justify-content: center;
         }
         .dash-hero-badge {
@@ -307,9 +400,9 @@
         .dark .dash-hero-badge { background: #1c1c1c; border-color: #2e2e2e; color: #f5f5f3; }
         .dash-hero-badge .dot { width: 8px; height: 8px; background: #111; border-radius: 2px; }
         .dark .dash-hero-badge .dot { background: #f5f5f3; }
-        .dash-hero-headline { font-size: 56px; font-weight: 800; line-height: 1.03; letter-spacing: -0.02em; color: #111; margin: 18px 0 4px; }
+        .dash-hero-headline { font-size: 54px; font-weight: 800; line-height: 1.04; letter-spacing: -0.02em; color: #111; margin: 8px 0 2px; }
         .dark .dash-hero-headline { color: #f5f5f3; }
-        .dash-hero-sub { font-size: 15px; color: #5b5b58; line-height: 1.6; max-width: 420px; margin: 0; }
+        .dash-hero-sub { font-size: 15.5px; color: #5b5b58; line-height: 1.6; max-width: 420px; margin: 0; }
         .dark .dash-hero-sub { color: #cfcfcb; }
         .dash-hero-cta {
             display: inline-flex; align-items: center; gap: 16px; width: fit-content;
@@ -320,14 +413,14 @@
             display: flex; align-items: center; justify-content: center; font-size: 17px;
         }
         .dark .dash-hero-cta-circ { background: #111; color: #f5f5f3; }
-        .dash-hero-stats { display: flex; gap: 14px; margin-top: 8px; }
+        .dash-hero-stats { display: flex; gap: 14px; margin-top: 0; }
         .dash-hero-stat-card {
-            background: #fff; border-radius: 18px; padding: 22px 24px;
+            background: #fff; border-radius: 18px; padding: 20px 22px;
             display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 150px;
             box-shadow: 0 2px 14px -4px rgba(0,0,0,.08);
         }
         .dark .dash-hero-stat-card { background: #1c1c1c; }
-        .dash-hero-stat-num { font-size: 34px; font-weight: 800; letter-spacing: -0.01em; color: #111; }
+        .dash-hero-stat-num { font-size: 33px; font-weight: 800; letter-spacing: -0.01em; color: #111; }
         .dark .dash-hero-stat-num { color: #f5f5f3; }
         .dash-hero-stat-lbl { font-size: 12.5px; color: #5b5b58; line-height: 1.3; }
         .dark .dash-hero-stat-lbl { color: #cfcfcb; }
@@ -412,9 +505,12 @@
         .gen-field-label { font-size: 12px; color: #5b5b58; display: block; margin-bottom: 6px; font-weight: 400; }
         .dark .gen-field-label { color: #cfcfcb; }
 
-        .gen-toggle-row { padding: 12px 0; border-top: 1px solid #e2e2df; }
-        .dark .gen-toggle-row { border-color: #2e2e2e; }
-        .gen-toggle-row:first-of-type { border-top: none; padding-top: 4px; }
+        /* (v97) เดิมใช้ :first-of-type เพื่อไม่ให้แถวแรกมีเส้นคั่นด้านบน (ตอนอยู่ต่อจากช่องกรอกข้อมูล เช่น "ชื่อตาราง") แต่ :first-of-type เช็คจาก "ลำดับ div ตัวแรกในกลุ่มพี่น้อง" ไม่ได้เช็คจาก class
+           พอมี div อื่น (เช่น .gen-row2 ของ Dialect/Rows) อยู่ก่อนหน้าในพี่น้องเดียวกัน .gen-toggle-row แถวแรกเลยไม่ใช่ div ตัวแรกจริงๆ กฎนี้เลยไม่มีผล ทำให้มีเส้นคั่นโผล่ใต้ช่อง "ชื่อตาราง" ทั้งที่ไม่ควรมี
+           แก้ด้วยการกลับหลักคิด: ไม่ใส่เส้นคั่นเป็นค่าเริ่มต้นเลย แล้วค่อยเติมเส้นคั่นเฉพาะตอนที่ .gen-toggle-row อยู่ถัดจาก .gen-toggle-row อีกอันจริงๆ (ใช้ + adjacent-sibling selector) วิธีนี้ถูกต้องเสมอไม่ว่าจะมีอะไรมาอยู่ก่อนหน้าแถวแรกก็ตาม */
+        .gen-toggle-row { padding: 12px 0; }
+        .gen-toggle-row + .gen-toggle-row { border-top: 1px solid #e2e2df; }
+        .dark .gen-toggle-row + .gen-toggle-row { border-color: #2e2e2e; }
         .gen-toggle-row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .gen-toggle-row-label { font-size: 13.5px; font-weight: 600; color: #111; display: flex; align-items: center; gap: 6px; cursor: pointer; }
         .dark .gen-toggle-row-label { color: #f5f5f3; }
@@ -432,6 +528,47 @@
         .gen-subfield-wrap { margin-top: 10px; }
         .gen-cta-circ { width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #111; display: flex; align-items: center; justify-content: center; font-size: 13px; }
         .dark .gen-cta-circ { background: #111; color: #f5f5f3; }
+
+        /* (v98) Custom Select — แทนที่ <select> เดิม (เฉพาะ #selectReferenceBatch "เลือกรอบข้อมูลของวันนี้" ตามที่แจ้ง) เพราะรายการตอนเปิด dropdown ของ <select> จริงเป็น native ของเบราว์เซอร์/OS สไตล์ด้วย CSS แทบไม่ได้เลย (ข้อจำกัดแพลตฟอร์ม)
+           <select> ตัวจริงยังอยู่ในหน้าเว็บเหมือนเดิม (แค่ซ่อนด้วย CSS ผ่าน .custom-select-native) โค้ด JS เดิมทั้งหมดยังอ่าน/เขียน .value, .innerHTML, onchange ได้ปกติทุกจุด — ส่วนที่เห็น (ปุ่ม trigger + เมนู) เป็นเลเยอร์แสดงผลใหม่ล้วนๆ ดูรายละเอียดการซิงค์ค่าใน initCustomSelect_ ท้ายสคริปต์ */
+        .custom-select-wrap { position: relative; }
+        .custom-select-native { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+        .custom-select-trigger {
+            width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            text-align: left; font-size: 14px; font-family: 'Noto Sans Thai', sans-serif; cursor: pointer;
+            background: #fbfbfa; border: 1px solid #e2e2df; border-radius: 8px; padding: 10px 16px; /* (v103) เดิม 8px 12px แคบกว่าช่องเลือกใหญ่จุดอื่นในระบบ (px-4 py-2.5 = 16px/10px) ปรับให้เท่ากันไม่ให้ข้อความ/ลูกศรชิดขอบเกินไป */
+            /* (v108) เดิม background/border เป็นโทน slate (#f8fafc/#e2e8f0) ซึ่งมีสีฟ้าแฝงอยู่ ไม่ตรงกับช่องกรอกข้อมูลอื่นๆ ในระบบที่ใช้โทนเทาเอกรงค์ (#fbfbfa/#e2e2df ดู .gen-panel input) เปลี่ยนให้เหมือนกันทั้งระบบ */
+            color: #334155; transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .custom-select-trigger-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .custom-select-caret { flex-shrink: 0; opacity: .6; transition: transform .15s ease; }
+        .custom-select-trigger.open .custom-select-caret { transform: rotate(180deg); }
+        /* (v107) เดิม focus/open ring + hover/selected ในเมนูใช้โทนสีน้ำเงิน (#3b82f6 ฯลฯ) ซึ่งไม่ตรงกับธีมเอกรงค์ขาว-ดำ-เทาที่ใช้ทั้งระบบ (ปุ่ม/ช่องกรอกข้อมูลอื่นๆ โฟกัสเป็นสีดำ/ขาวอยู่แล้ว ดู .focus\:ring-blue-500:focus ด้านบนที่ override เป็น #111111 ไว้แล้วทั้งระบบ)
+           เปลี่ยนมาใช้ดำ (Light Mode) / ขาว (Dark Mode) ให้เข้ากับปุ่ม/ช่องกรอกข้อมูลอื่นๆ ทั้งหมดแทน ไม่ใช่สีน้ำเงินอีกต่อไป */
+        .custom-select-trigger:focus, .custom-select-trigger.open { outline: none !important; box-shadow: 0 0 0 2px #111 !important; border-color: #111 !important; }
+        .custom-select-trigger:disabled { opacity: .5; cursor: not-allowed; }
+        .dark .custom-select-trigger { background: #131313; border-color: #2e2e2e; color: #e5e5e2; } /* (v108) เดิม #0f172a/#475569 (slate) มีสีน้ำเงินแฝง เปลี่ยนเป็นโทนเทาเอกรงค์เดียวกับ .dark .gen-panel input */
+        .dark .custom-select-trigger:focus, .dark .custom-select-trigger.open { box-shadow: 0 0 0 2px #f5f5f3 !important; border-color: #f5f5f3 !important; }
+        .custom-select-menu {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+            max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid #e2e2df; border-radius: 10px;
+            box-shadow: 0 8px 24px -6px rgba(0,0,0,.18); padding: 4px; display: none;
+        }
+        .custom-select-menu.open { display: block; }
+        .dark .custom-select-menu { background: #1c1c1c; border-color: #2e2e2e; box-shadow: 0 8px 24px -6px rgba(0,0,0,.5); } /* (v108) เดิม #1e293b/#475569 (slate) เปลี่ยนเป็นเทาเอกรงค์ */
+        .custom-select-option {
+            padding: 9px 12px; border-radius: 6px; font-size: 13px; cursor: pointer;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #334155;
+        }
+        .custom-select-option:hover { background: #f2f2f0; color: #111; }
+        .custom-select-option.selected { background: #ececea; color: #111; font-weight: 600; }
+        .dark .custom-select-option { color: #e5e5e2; }
+        .dark .custom-select-option:hover { background: #262626; color: #f5f5f3; }
+        .dark .custom-select-option.selected { background: #2e2e2e; color: #f5f5f3; font-weight: 600; }
+        /* (v109) รุ่นย่อของ custom-select สำหรับแถบเครื่องมือแคบๆ (เช่น batchEditColumn) ให้ตัวสูง/ตัวอักษรเท่ากับ input ข้างๆ (text-xs, py-1.5) แทนขนาดมาตรฐานที่ใหญ่เกินไปสำหรับจุดนี้ */
+        .custom-select-trigger-compact { font-size: 12px; padding: 6px 10px; border-radius: 6px; gap: 4px; }
+        .custom-select-wrap-compact .custom-select-menu { min-width: 160px; }
+        .custom-select-trigger-compact .custom-select-caret { width: 12px; height: 12px; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-100">
@@ -684,7 +821,7 @@
                 </div>
             </div>
 
-            <div id="authSubmitBlock" class="space-y-3 max-w-md mx-auto w-full border-t border-slate-100 dark:border-slate-700 pt-5">
+            <div id="authSubmitBlock" class="space-y-3 max-w-md mx-auto w-full pt-5">
                 <!-- ปุ่มย้อนกลับไปขั้นตอนที่ 1 ของฟอร์มลงทะเบียน (2 ขั้นตอน) สไตล์ลิงก์สีน้ำเงินให้เข้ากับธีมเดียวกับปุ่มสลับโหมดเข้าสู่ระบบ/ลงทะเบียนด้านล่าง โชว์เฉพาะตอนอยู่ขั้นตอนที่ 2 เท่านั้น -->
                 <button id="btnRegisterBack" type="button" onclick="goBackToRegisterStep1()" class="hidden w-full flex items-center justify-center gap-1.5 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline transition-all">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
@@ -846,12 +983,15 @@
                     <button id="btnToggleDarkMode" onclick="toggleDarkMode()" title="สลับโหมดสว่าง/มืด" class="px-3 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-white rounded-xl border border-slate-200 dark:border-slate-500 shadow-sm dark:shadow-black/30 transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark Mode</button>
                     <button onclick="openChangeOwnPasswordModal()" class="px-3 py-2 text-xs font-semibold bg-white dark:bg-slate-700 text-slate-600 dark:text-white border border-slate-200 dark:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl shadow-sm dark:shadow-black/30 transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.5 12.5 19 4M17 6l3 3M14 9l2 2"/></svg>เปลี่ยนรหัสผ่าน</button>
                     <button id="btnRequestDeleteAccount" onclick="triggerRequestDeleteAccountConfirm()" class="px-3 py-2 text-xs font-semibold bg-white dark:bg-slate-700 text-slate-600 dark:text-white border border-slate-200 dark:border-slate-500 hover:bg-rose-50 dark:hover:bg-rose-950 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl shadow-sm dark:shadow-black/30 transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>ขอลบบัญชี</button>
-                    <button onclick="triggerLogoutConfirm()" class="px-3 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-white rounded-xl border border-slate-200 dark:border-slate-500 shadow-sm dark:shadow-black/30 transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>ออกจากระบบ</button>
-                    <button onclick="triggerResetConfirm(this)" class="px-4 py-2 text-xs font-semibold bg-rose-50 dark:bg-rose-900 hover:bg-rose-100 dark:hover:bg-rose-800 text-rose-600 dark:text-rose-100 rounded-xl border border-rose-100 dark:border-rose-700 transition-all flex items-center gap-1.5 shadow-inner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px]"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>รีเซ็ตข้อมูล</button>
+                    <!-- (v120) รีเซ็ตข้อมูล เปลี่ยนจากสีแดง(rose) เป็นสีเหลือง(amber) ตามที่แจ้ง — ออกจากระบบ เปลี่ยนจากสีเทา(slate) เป็นสีแดง(rose) เดิม ให้เข้ากันทั้ง Light/Dark Mode -->
+                    <button onclick="triggerResetConfirm(this)" class="px-4 py-2 text-xs font-semibold bg-amber-50 dark:bg-amber-900 hover:bg-amber-100 dark:hover:bg-amber-800 text-amber-600 dark:text-amber-100 rounded-xl border border-amber-100 dark:border-amber-700 transition-all flex items-center gap-1.5 shadow-inner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px]"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>รีเซ็ตข้อมูล</button>
+                    <button onclick="triggerLogoutConfirm()" class="px-3 py-2 text-xs font-semibold bg-rose-50 dark:bg-rose-900 hover:bg-rose-100 dark:hover:bg-rose-800 text-rose-600 dark:text-rose-100 rounded-xl border border-rose-100 dark:border-rose-700 shadow-sm dark:shadow-black/30 transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>ออกจากระบบ</button>
                 </div>
             </div>
         </div>
 
+        <!-- (v145) .app-content-scroll: กรอบเลื่อนจริงของทุกแท็บ (แยกจาก Header ด้านบนโดยสิ้นเชิง) ดูคอมเมนต์ที่ .app-main ใน <style> ประกอบ -->
+        <div class="app-content-scroll">
         <div id="sectionDashboard" data-app-section="dashboard" class="space-y-6">
         <div class="dash-hero">
             <div class="dash-hero-canvas-wrap">
@@ -905,13 +1045,22 @@
                         </div>
 
                         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 border border-slate-100 dark:border-slate-700 space-y-3">
-                            <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-50 dark:border-slate-800 pb-3">
+                            <!-- (v126) เอาเส้นคั่นบาง (border-b/border-t) เหนือ-ใต้แถวเลือก Prompt ออกตามที่แจ้ง คงระยะห่าง (pb-3/pt-1) ไว้เท่าเดิม แค่ไม่มีเส้นขีดให้เห็น -->
+                            <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-3">
                                 Prompt ที่เคยบันทึกไว้ (ใช้ซ้ำได้)
                             </h2>
                             <div class="flex items-center gap-2 min-w-0">
-                                <select id="savedPromptsSelect" class="flex-1 min-w-0 max-w-full text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all truncate">
-                                    <option value="">-- ยังไม่มี prompt ที่บันทึกไว้ --</option>
-                                </select>
+                                <!-- (v104) savedPromptsSelect เปลี่ยนมาเป็น custom dropdown แบบเดียวกับ selectReferenceDate/selectReferenceBatch (เดิมยังเป็น native select ลูกศร/สไตล์ตอนเปิดไม่ตรงกับจุดอื่น แล้วรายการยังเปิดค้างซ้อนขึ้นด้านบนแทนที่จะลงล่างด้วย) -->
+                                <div class="custom-select-wrap flex-1 min-w-0">
+                                    <select id="savedPromptsSelect" class="custom-select-native">
+                                        <option value="">-- ยังไม่มี prompt ที่บันทึกไว้ --</option>
+                                    </select>
+                                    <button type="button" class="custom-select-trigger">
+                                        <span class="custom-select-trigger-label">-- ยังไม่มี prompt ที่บันทึกไว้ --</span>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="custom-select-caret"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div class="custom-select-menu" role="listbox"></div>
+                                </div>
                                 <button onclick="applySelectedPrompt()" class="shrink-0 px-3 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-600 transition-all whitespace-nowrap">
                                     โหลดมาใช้
                                 </button>
@@ -922,7 +1071,7 @@
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
                                 </button>
                             </div>
-                            <div class="flex items-center gap-2 pt-1 border-t border-slate-50 dark:border-slate-800">
+                            <div class="flex items-center gap-2 pt-1">
                                 <input id="newPromptNameInput" type="text" placeholder="ตั้งชื่อ Prompt ปัจจุบันเพื่อบันทึกไว้ใช้ซ้ำ" class="flex-1 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
                                 <button onclick="saveCurrentPrompt()" class="px-3 py-2 text-xs font-semibold bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800 transition-all whitespace-nowrap">
                                     บันทึก
@@ -938,13 +1087,21 @@
                         <div class="gen-row2" style="margin-bottom:12px;">
                             <div>
                                 <label class="gen-field-label">ประเภท Database (Dialect)</label>
-                                <select id="inputDbDialect" class="w-full text-sm border border-slate-200 dark:border-slate-600 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
-                                    <option value="PostgreSQL">PostgreSQL</option>
-                                    <option value="MySQL">MySQL</option>
-                                    <option value="MS SQL">MS SQL</option>
-                                    <option value="Oracle">Oracle</option>
-                                    <option value="MongoDB">MongoDB</option>
-                                </select>
+                                <!-- (v106) inputDbDialect เปลี่ยนมาเป็น custom dropdown แบบเดียวกับช่องอื่นๆ ทั้งระบบ -->
+                                <div class="custom-select-wrap">
+                                    <select id="inputDbDialect" class="custom-select-native">
+                                        <option value="PostgreSQL">PostgreSQL</option>
+                                        <option value="MySQL">MySQL</option>
+                                        <option value="MS SQL">MS SQL</option>
+                                        <option value="Oracle">Oracle</option>
+                                        <option value="MongoDB">MongoDB</option>
+                                    </select>
+                                    <button type="button" class="custom-select-trigger">
+                                        <span class="custom-select-trigger-label">PostgreSQL</span>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="custom-select-caret"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div class="custom-select-menu" role="listbox"></div>
+                                </div>
                             </div>
                             <div>
                                 <label class="gen-field-label">จำนวนแถวที่ต้องการ (Rows) <span class="text-rose-500 dark:text-rose-400">*</span></label>
@@ -987,20 +1144,37 @@
                                 <p class="text-[10px] text-slate-400 dark:text-slate-400">เลือกวันที่ก่อน แล้วค่อยเลือกรอบข้อมูลเก่าที่เคย Commit ไว้ของวันนั้น จากนั้นติ๊กเลือกคอลัมน์ที่ต้องการให้ค่าตรงกับข้อมูลเดิม 100% (เช่น "รหัสพนักงาน") ระบบจะสุ่มหยิบค่าจากแถวเดิมมาใส่ให้ตรงเป๊ะ ไม่ผ่าน AI — ถ้าเลือกหลายคอลัมน์พร้อมกัน แต่ละแถวใหม่จะได้ค่าจากแถวต้นฉบับเดียวกันเสมอ (คู่ข้อมูลจะสอดคล้องกันไม่หลุด) ส่วนคอลัมน์อื่นที่ไม่ได้เลือก AI จะสร้างขึ้นใหม่ตามปกติ</p>
 
                                 <!-- (v73) ขั้นตอนที่ 1: เลือกวันที่ก่อน (กันรายการยาวเกินไปตอนมีข้อมูลเยอะ) -->
+                                <!-- (v101) selectReferenceDate เปลี่ยนมาเป็น custom dropdown แบบเดียวกับ selectReferenceBatch ด้านล่าง (เดิมมี emoji 📅 ติดอยู่ใน option ตอนนี้ตัดออกแล้วใช้ไอคอนปฏิทิน SVG แทน — ดู CUSTOM_SELECT_OPTION_ICONS_ ท้ายสคริปต์) -->
                                 <div class="flex items-center gap-2 min-w-0">
-                                    <select id="selectReferenceDate" onchange="onReferenceDateSelectedForGenerate()" class="flex-1 min-w-0 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="">-- กำลังโหลดรายการ... --</option>
-                                    </select>
+                                    <div class="custom-select-wrap flex-1 min-w-0">
+                                        <select id="selectReferenceDate" onchange="onReferenceDateSelectedForGenerate()" class="custom-select-native">
+                                            <option value="">-- กำลังโหลดรายการ... --</option>
+                                        </select>
+                                        <button type="button" class="custom-select-trigger">
+                                            <span class="custom-select-trigger-label">-- กำลังโหลดรายการ... --</span>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="custom-select-caret"><path d="m6 9 6 6 6-6"/></svg>
+                                        </button>
+                                        <div class="custom-select-menu" role="listbox"></div>
+                                    </div>
                                     <button onclick="loadReferenceBatchListForGenerate()" title="รีเซ็ต / รีเฟรชรายการ" class="shrink-0 px-2.5 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-600 transition-all">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
                                     </button>
                                 </div>
 
                                 <!-- ขั้นตอนที่ 2: เลือกรอบ Commit เฉพาะวันที่เลือกไว้ (ซ่อนไว้จนกว่าจะเลือกวันที่) -->
+                                <!-- (v98) selectReferenceBatch เปลี่ยนจาก <select> ธรรมดามาเป็น custom dropdown (ดู .custom-select-* ใน <style> + initCustomSelect_ ในสคริปต์ด้านล่าง) เพราะ dropdown ของ <select> เดิมตอนเปิดเป็น native ของเบราว์เซอร์ สไตล์ CSS แทบไม่ได้เลย (ข้อจำกัดแพลตฟอร์ม ไม่ใช่บั๊ก)
+                                     <select> ตัวจริงยังอยู่เหมือนเดิมทุกจุด (ซ่อนไว้ด้วย CSS เท่านั้น) โค้ด JS เดิมทั้งหมด (onchange, .value, .innerHTML) ยังทำงานเหมือนเดิมทุกอย่างไม่ต้องแก้ไข มีแค่ trigger+menu เป็นเลเยอร์แสดงผลใหม่ที่ผูกซิงค์ค่ากลับไปมาเท่านั้น -->
                                 <div id="referenceBatchSelectRow" class="hidden flex items-center gap-2 min-w-0">
-                                    <select id="selectReferenceBatch" onchange="onReferenceBatchSelectedForGenerate()" class="flex-1 min-w-0 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="">-- เลือกรอบข้อมูลของวันนี้ --</option>
-                                    </select>
+                                    <div class="custom-select-wrap flex-1 min-w-0">
+                                        <select id="selectReferenceBatch" onchange="onReferenceBatchSelectedForGenerate()" class="custom-select-native">
+                                            <option value="">-- เลือกรอบข้อมูลของวันนี้ --</option>
+                                        </select>
+                                        <button type="button" class="custom-select-trigger">
+                                            <span class="custom-select-trigger-label">-- เลือกรอบข้อมูลของวันนี้ --</span>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="custom-select-caret"><path d="m6 9 6 6 6-6"/></svg>
+                                        </button>
+                                        <div class="custom-select-menu" role="listbox"></div>
+                                    </div>
                                     <button onclick="triggerDeleteReferenceBatchConfirm()" title="ลบรอบข้อมูลที่เลือกไว้" class="shrink-0 px-2.5 py-2 text-xs font-semibold bg-rose-50 dark:bg-rose-950 hover:bg-rose-100 text-rose-600 dark:text-rose-400 rounded-lg border border-rose-100 dark:border-rose-800 transition-all">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
                                     </button>
@@ -1074,17 +1248,31 @@
                         <div class="flex flex-col md:flex-row items-center gap-3">
                             <div class="flex-1 w-full relative">
                                 <span class="absolute inset-y-0 left-3 flex items-center text-slate-400 dark:text-slate-400 select-none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg></span>
-                                <input id="excelSearchInput" type="text" oninput="handleExcelSearch()" placeholder="ค้นหาข้อมูลจำลอง (เสิร์ชชื่อ, รหัส, นโยบาย ฯลฯ ได้แบบ Real-time)..." class="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-500 rounded-lg pl-9 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all">
+                                <!-- (v141) แถวนี้ (ช่องค้นหา + 2 dropdown) ดูใหญ่เกินไปทั้งแถว — ย่อลงทั้งชุดให้กะทัดรัดขึ้น
+                                     ช่องค้นหา: คงน้ำหนักตัวอักษร font-medium + line-height ที่กันสระอูตัด (v131) ไว้ แค่ลดขนาดตัวอักษร/padding ลงจาก text-sm+py-2.5 เดิม
+                                     2 dropdown: เปลี่ยนไปใช้ custom-select-trigger-compact แบบเดียวกับที่ใช้ในแถบ Bulk Edit (batchEditColumn) เพื่อให้ขนาดเข้าชุดกับช่องค้นหาที่ย่อแล้ว -->
+                                <input id="excelSearchInput" type="text" oninput="handleExcelSearch()" placeholder="ค้นหาข้อมูลจำลอง (เสิร์ชชื่อ, รหัส, นโยบาย ฯลฯ ได้แบบ Real-time)..." style="font-size: 12.5px; line-height: 1.6;" class="w-full font-medium bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-500 rounded-lg pl-9 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all">
                             </div>
-                            <div class="w-full md:w-48">
-                                <select id="excelFilterColumn" onchange="populateUniqueValues()" class="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all">
+                            <!-- (v105) excelFilterColumn/excelUniqueValues เปลี่ยนมาเป็น custom dropdown แบบเดียวกับช่องอื่นๆ ทั้งระบบ (ลูกศร+ระยะห่างขอบเท่ากันหมด) — excelUniqueValues มี disabled ตามเดิม (ปุ่ม trigger เป็น <button> จริง ใช้ .disabled ธรรมดาได้เลย เบราว์เซอร์จัดการ cursor/กันคลิกให้เองอัตโนมัติ) -->
+                            <div class="custom-select-wrap custom-select-wrap-compact w-full md:w-40">
+                                <select id="excelFilterColumn" onchange="populateUniqueValues()" class="custom-select-native">
                                     <option value="">-- กรองตามชื่อหัวข้อ --</option>
                                 </select>
+                                <button type="button" class="custom-select-trigger custom-select-trigger-compact">
+                                    <span class="custom-select-trigger-label">-- กรองตามชื่อหัวข้อ --</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="custom-select-caret"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div class="custom-select-menu" role="listbox"></div>
                             </div>
-                            <div class="w-full md:w-48">
-                                <select id="excelUniqueValues" onchange="handleExcelSearch()" class="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-500 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all" disabled>
+                            <div class="custom-select-wrap custom-select-wrap-compact w-full md:w-40">
+                                <select id="excelUniqueValues" onchange="handleExcelSearch()" class="custom-select-native" disabled>
                                     <option value="">-- กรองค่าที่ซ้ำ --</option>
                                 </select>
+                                <button type="button" class="custom-select-trigger custom-select-trigger-compact">
+                                    <span class="custom-select-trigger-label">-- กรองค่าที่ซ้ำ --</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="custom-select-caret"><path d="m6 9 6 6 6-6"/></svg>
+                                </button>
+                                <div class="custom-select-menu" role="listbox"></div>
                             </div>
                         </div>
                         
@@ -1094,17 +1282,30 @@
                                 🛠️ ค้นพบ <span id="filteredRowsCount" class="text-blue-600 dark:text-blue-400 font-bold">0</span> รายการผ่านการกรอง : ต้องการแทนค่าข้อมูลทั้งหมดนี้พร้อมกันหรือไม่?
                             </div>
                             <div class="flex items-center gap-2 w-full md:w-auto">
-                                <select id="batchEditColumn" class="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-500 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                    <option value="">-- เลือกฟิลด์ --</option>
-                                </select>
+                                <!-- (v109) batchEditColumn เปลี่ยนมาเป็น custom dropdown แบบเดียวกับช่องอื่นๆ ทั้งระบบ (เดิมเว้นไว้เป็น native ตามที่แจ้งไว้รอบก่อน แต่ผู้ใช้ขอให้แก้เพิ่มภายหลัง) ใช้คลาส custom-select-trigger-compact ควบคุมขนาดให้เข้ากับแถบเครื่องมือแคบๆ นี้โดยเฉพาะ ไม่กระทบช่องใหญ่จุดอื่น -->
+                                <div class="custom-select-wrap custom-select-wrap-compact shrink-0 w-32">
+                                    <select id="batchEditColumn" class="custom-select-native">
+                                        <option value="">-- เลือกฟิลด์ --</option>
+                                    </select>
+                                    <button type="button" class="custom-select-trigger custom-select-trigger-compact">
+                                        <span class="custom-select-trigger-label">-- เลือกฟิลด์ --</span>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="custom-select-caret"><path d="m6 9 6 6 6-6"/></svg>
+                                    </button>
+                                    <div class="custom-select-menu" role="listbox"></div>
+                                </div>
                                 <input id="batchEditValue" type="text" placeholder="ระบุค่าใหม่ที่จะแทนที่..." class="text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-500 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-1 md:w-36">
                                 <button onclick="applyBatchEdit()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded transition-all shadow-sm whitespace-nowrap">แก้ไขทั้งหมด</button>
+                                <!-- (v113) ปุ่มล้างตัวกรอง — ตอนกำลังกรอง/แก้ไขแบบกลุ่มอยู่ ปุ่ม "บันทึกลงฐานข้อมูล" ด้านล่างการ์ดจะถูกซ่อนไว้ก่อน (กันสับสน/กันปัญหาการ์ดสั้นตอนข้อมูลเหลือน้อย) ต้องล้างตัวกรองกลับไปดูข้อมูลทั้งหมดก่อนถึงจะบันทึกได้ ปุ่มนี้คือทางลัดกลับไปจุดนั้น -->
+                                <button type="button" onclick="clearExcelFilters()" title="ล้างคำค้นหาและตัวกรองทั้งหมด กลับไปแสดงข้อมูลทั้งหมด" class="px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-500 font-medium text-xs rounded transition-all hover:bg-slate-50 dark:hover:bg-slate-600 shadow-sm whitespace-nowrap flex items-center gap-1">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                                    ล้างตัวกรอง
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto border border-slate-200 dark:border-slate-600 rounded-lg shadow-sm">
-                        <table id="dataTable" class="w-full text-xs text-left text-slate-600 dark:text-slate-300 whitespace-nowrap border-collapse">
+                    <div id="dataTableScrollWrap" class="overflow-x-auto border border-slate-200 dark:border-slate-600 rounded-lg shadow-sm">
+                        <table id="dataTable" class="min-w-full text-xs text-left text-slate-600 dark:text-slate-300 whitespace-nowrap border-collapse">
                             <thead id="tableHeaderContainer" class="text-white uppercase bg-[#2d3748] border-b border-slate-300 dark:border-slate-500">
                             </thead>
                             <tbody id="tableBody" class="divide-y divide-slate-200 dark:divide-slate-700">
@@ -1139,13 +1340,25 @@
                     <!-- แจ้งเตือนจุดที่ไม่ตรงเงื่อนไข (แสดงเฉพาะกรณีผู้ใช้กดยืนยันนำเข้าข้อมูลทั้งที่ผลตรวจสอบยังไม่ผ่านครบ) -->
                     <div id="dashboardValidationWarning" class="hidden text-[11px] text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 border border-rose-100 dark:border-rose-800 rounded-lg px-3 py-2 leading-relaxed"></div>
 
-                    <div class="flex justify-end pt-2">
-                        <div class="flex items-center gap-2 flex-wrap justify-end w-full sm:w-auto bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg p-1.5 shadow-sm">
-                            <input id="dbConfirmPassword" type="password" oninput="validateDbUnlockPassword(); filterNonEnglishInput(this);" placeholder="ยืนยันรหัสผ่านเพื่อ Commit ลงระบบ" class="px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none w-full sm:w-44 bg-white dark:bg-slate-800 placeholder:text-[10px] transition-all focus:ring-1 focus:ring-blue-400">
-                            <button id="btnInsertDB" onclick="insertToDatabase(this)" disabled class="px-4 py-1.5 text-xs font-semibold bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg cursor-not-allowed transition-all flex items-center gap-1 w-full sm:w-auto justify-center">
-                                บันทึกลงฐานข้อมูล
-                            </button>
+                    <!-- (v110) เดิม input รหัสผ่าน + ปุ่มบันทึกอยู่ในกรอบเดียวกัน (bg-slate-900 border รวม) ทำให้ปุ่ม (พื้นสีทึบของตัวเอง) ดูเหมือนโผล่ทะลุ/ไม่กลมกลืนกับกรอบ ตามที่แจ้ง
+                         แก้โดยแยกปุ่ม "บันทึกลงฐานข้อมูล" ออกมาเป็นอิสระนอกกรอบรหัสผ่านชัดเจน ใส่ไอคอนกุญแจ/บันทึกเพิ่มความสวยงาม และเปลี่ยนกรอบรหัสผ่านเป็นโทนเทาเอกรงค์ (#fbfbfa/#131313) ให้ตรงกับช่องกรอกข้อมูลอื่นๆ ทั้งระบบ (เดิมเป็น slate สีน้ำเงินแฝง)
+                         (v111) แจ้งว่าแถวนี้ยัง "ดูเหมือน" อยู่นอกกรอบการ์ด Data Preview อยู่ (โครงสร้าง DOM จริงยังอยู่ใน #resultsSection ปกติ ตรวจสอบแล้วไม่หลุดกรอบจริง แต่ช่องว่างก่อนหน้านี้กว้างเกินไปจนดูเหมือนลอยแยกออกมาเป็นอีกกล่อง)
+                         เติมเส้นแบ่ง border-t ด้านบน + พื้นหลังจางๆ ยึดให้แถวนี้อ่านว่าเป็นส่วนต่อเนื่องของการ์ดชัดเจน แบบเดียวกับที่ pagination ใช้เส้น border-t คั่นด้านบนอยู่แล้ว -->
+                    <!-- (v113) ตอนกำลังกรอง/ค้นหาอยู่ (isFilteringActive) ซ่อนแถวรหัสผ่าน+ปุ่มบันทึกไว้ก่อน แสดงข้อความ dbSaveFilterHint แทน สลับกันด้วย toggleDbSaveRowByFilterState_() ที่เรียกจาก handleExcelSearch()/clearExcelFilters() -->
+                    <div id="dbSaveActionRow" class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 mt-1 border-t border-slate-100 dark:border-slate-700">
+                        <div class="flex items-center gap-2 bg-[#fbfbfa] dark:bg-[#131313] border border-[#e2e2df] dark:border-[#2e2e2e] rounded-lg pl-3 pr-2 py-1.5 shadow-sm w-full sm:w-auto transition-all focus-within:border-[#111111] dark:focus-within:border-[#f5f5f3]">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-slate-400 dark:text-slate-500"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <input id="dbConfirmPassword" type="password" oninput="validateDbUnlockPassword(); filterNonEnglishInput(this);" placeholder="รหัสผ่านเพื่อยืนยัน Commit ลงระบบ" class="text-xs border-0 bg-transparent focus:outline-none focus:ring-0 w-full sm:w-48 placeholder:text-[10px] transition-all">
                         </div>
+                        <button id="btnInsertDB" onclick="insertToDatabase(this)" disabled class="px-4 py-2 text-xs font-semibold bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg cursor-not-allowed transition-all flex items-center justify-center gap-1.5 w-full sm:w-auto shadow-sm">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            บันทึกลงฐานข้อมูล
+                        </button>
+                    </div>
+                    <div id="dbSaveFilterHint" class="hidden flex items-center justify-end gap-2 pt-3 mt-1 border-t border-slate-100 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                        <span>กำลังกรองข้อมูลอยู่ — ล้างตัวกรองก่อนเพื่อบันทึกลงฐานข้อมูล</span>
+                        <button type="button" onclick="clearExcelFilters()" class="px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-500 font-medium text-xs rounded-lg transition-all hover:bg-slate-50 dark:hover:bg-slate-600 shadow-sm whitespace-nowrap">ล้างตัวกรอง</button>
                     </div>
                 </div>
 
@@ -1164,12 +1377,11 @@
                             <button onclick="downloadGeneratedDataJson(this)" class="px-3 py-1.5 text-xs font-medium bg-amber-600 hover:bg-amber-500 text-white rounded-lg transition-all flex items-center gap-1">
                                 ดาวน์โหลด .json
                             </button>
-                        </div>
-                      </div>
-                      <div class="flex justify-end">
+                            <!-- (v118) ย้ายปุ่ม "คัดลอก SQL Query" ขึ้นมาไว้แถวเดียวกัน ต่อจากปุ่มดาวน์โหลด .json ตามที่แจ้ง (เดิมอยู่แถวแยกด้านล่าง) -->
                             <button onclick="copySQLToClipboard(this)" class="px-3 py-1.5 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-all flex items-center gap-1">
                                 คัดลอก SQL Query
                             </button>
+                        </div>
                       </div>
                     </div>
 
@@ -1222,7 +1434,7 @@
                 <div id="qualityReportBody" class="p-6 overflow-auto text-xs text-slate-700 dark:text-slate-300 flex-1">
                     <p class="text-slate-400 dark:text-slate-400 text-center py-8">กำลังโหลดข้อมูล...</p>
                 </div>
-                <div class="p-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
+                <div id="qrFooterBar" class="p-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
                     <button id="qrCloseBtn" onclick="closeQualityReportModal()" class="hidden w-1/2 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 rounded-lg font-medium text-xs transition-all">
                         ปิด
                     </button>
@@ -1245,7 +1457,7 @@
                 <div id="datasetHistoryBody" class="p-6 overflow-auto text-xs text-slate-700 dark:text-slate-300 flex-1">
                     <p class="text-slate-400 dark:text-slate-400 text-center py-8">กำลังโหลดข้อมูล...</p>
                 </div>
-                <div class="p-4 border-t border-slate-100 dark:border-slate-700 flex gap-2 flex-wrap">
+                <div id="dhFooterBar" class="p-4 border-t border-slate-100 dark:border-slate-700 flex gap-2 flex-wrap">
                     <button id="dhCloseBtn" onclick="closeDatasetHistoryModal()" class="hidden w-full py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 rounded-lg font-medium text-xs transition-all">
                         ปิด
                     </button>
@@ -1276,6 +1488,7 @@
                 </div>
             </div>
         </div><!-- /#sectionUserManagement -->
+        </div><!-- /.app-content-scroll -->
 
         </div><!-- /.app-main -->
       </div><!-- /.app-shell -->
@@ -1415,6 +1628,152 @@
         } catch (e) { /* แค่ตกแต่ง ไม่ควรทำให้หน้าเว็บพังถ้าเบราว์เซอร์ไม่รองรับ canvas */ }
 
         // ==========================================
+        // (v92) "คลิกค้างแล้วลาก Cursor" เพื่อเลื่อนดูตารางที่คอลัมน์ล้นจอ (drag-to-scroll) — เสริมจากแถบเลื่อนแนวนอนเดิม (overflow-x-auto) ที่ต้องเล็งเมาส์ไปที่แถบด้านล่างสุดเท่านั้นถึงจะลากได้
+        // ใช้กับกล่องตารางที่คอลัมน์อาจล้นทุกจุด: #dataTableScrollWrap (ตรวจสอบข้อมูล), #qualityReportBody/#datasetHistoryBody/#adminUserPanelBody (รายงานคุณภาพ/ประวัติ Commit/จัดการผู้ใช้งาน)
+        // ผูก event ที่ตัว container เอง (ไม่ใช่เนื้อหาข้างในที่ถูกแทนที่ innerHTML บ่อยๆ) จึงผูกครั้งเดียวตอนโหลดหน้าเว็บพอ ไม่ต้องผูกซ้ำทุกครั้งที่ render ตารางใหม่
+        // มี threshold ระยะขยับ (5px) ก่อนถือว่าเป็นการ "ลาก" จริง — ถ้าแค่คลิกเฉยๆ (ไม่ขยับ) ปุ่ม/checkbox/แถวที่คลิกอยู่ข้างในยังทำงานตามปกติทุกอย่าง ไม่ถูกรบกวน
+        // ถ้าขยับเกิน threshold แล้วถือเป็นการลาก จะกันไม่ให้ click event ที่ตามมาหลังปล่อยเมาส์ไปกระตุ้นปุ่ม/แถวข้างใต้เคอร์เซอร์โดยไม่ตั้งใจ (เช่นลากผ่านปุ่ม "ลบ" แล้วดันไปกดโดนพอดี)
+        // (v95) เดิมล็อค cursor:grab + เปิดให้ลากได้ไว้ตลอดเวลาไม่ว่าเนื้อหาจะล้นกรอบจริงหรือไม่ — ผู้ใช้แจ้งว่าอยากให้ "ลากเพื่อเลื่อน" ทำงานเฉพาะตอนข้อมูลเกินขอบจนต้องเลื่อนดูจริงๆ เท่านั้น
+        // ถ้าเนื้อหาพอดีกรอบ (ไม่ล้น) ให้ล็อคเหมือนเดิม (ไม่มี cursor:grab, คลิกลากไม่ทำอะไร) — เช็ค scrollWidth > clientWidth สดๆ ทุกครั้งก่อนอนุญาตให้ลาก เพราะตารางเปลี่ยนเนื้อหา/จำนวนคอลัมน์ได้ตลอด (สลับวันที่, กรอง ฯลฯ)
+        function enableDragScroll_(el) {
+            if (!el) return;
+            let isDown = false, startX = 0, startScrollLeft = 0, moved = false;
+            function hasOverflow_() { return el.scrollWidth > el.clientWidth + 1; }
+            function syncGrabCursor_() { el.classList.toggle('can-drag-scroll', hasOverflow_()); }
+            el.addEventListener('mouseenter', syncGrabCursor_);
+            el.addEventListener('mousemove', syncGrabCursor_); // เผื่อเนื้อหาข้างในเปลี่ยน (โหลดข้อมูลใหม่) ระหว่างที่เมาส์ค้างอยู่ในกล่องนี้พอดี
+            el.addEventListener('mousedown', function (e) {
+                if (e.button !== 0) return; // ซ้ายเท่านั้น ไม่ยุ่งกับคลิกขวา/กลาง
+                if (!hasOverflow_()) return; // เนื้อหาไม่ล้นกรอบ = ล็อคจอไว้เหมือนเดิม ไม่เริ่มลากเลย ปล่อยให้คลิกทำงานปกติ
+                isDown = true;
+                moved = false;
+                startX = e.pageX;
+                startScrollLeft = el.scrollLeft;
+            });
+            window.addEventListener('mousemove', function (e) {
+                if (!isDown) return;
+                const walk = e.pageX - startX;
+                if (!moved && Math.abs(walk) > 5) {
+                    moved = true;
+                    el.classList.add('drag-scrolling');
+                }
+                if (moved) {
+                    e.preventDefault(); // กันเลือกข้อความ (text selection) ค้างระหว่างลาก
+                    el.scrollLeft = startScrollLeft - walk;
+                }
+            });
+            window.addEventListener('mouseup', function () {
+                isDown = false;
+                el.classList.remove('drag-scrolling');
+                // ปล่อย moved เป็น true ต่ออีกเฟรมนึงให้ event 'click' (capture phase ด้านล่าง) ทันเช็คก่อนเคลียร์
+                setTimeout(function () { moved = false; }, 0);
+            });
+            // ลากจริง (moved) แล้วค่อยปล่อยเมาส์ = กัน click ที่ตามมาไม่ให้ไปกระตุ้นปุ่ม/แถวข้างใต้เคอร์เซอร์โดยไม่ตั้งใจ
+            el.addEventListener('click', function (e) {
+                if (moved) { e.stopPropagation(); e.preventDefault(); }
+            }, true);
+        }
+        ['dataTableScrollWrap', 'qualityReportBody', 'datasetHistoryBody', 'adminUserPanelBody'].forEach(function (id) {
+            enableDragScroll_(document.getElementById(id));
+        });
+
+        // ==========================================
+        // (v98) Custom Select — เลเยอร์แสดงผลใหม่คู่กับ <select> ตัวจริงที่ถูกซ่อนไว้ด้วย CSS (.custom-select-native) ใช้แก้ปัญหา dropdown เปิดแล้วเป็นสไตล์ native ของเบราว์เซอร์/OS (สไตล์ CSS ตอน list เปิดไม่ได้จริงๆ เป็นข้อจำกัดแพลตฟอร์ม)
+        // <select> ตัวจริงยังทำหน้าที่เป็น "แหล่งข้อมูลจริง" เหมือนเดิมทุกจุด (โค้ด JS เดิมทั้งหมดที่อ่าน/เขียน .value, .innerHTML, .selectedIndex, onchange ไม่ต้องแก้ไขอะไรเลย) — ฟังก์ชันนี้แค่สร้างปุ่ม/เมนูที่มองเห็นให้ตรงกับตัวจริงเสมอ
+        // ผูก MutationObserver ไว้คอยจับตอน .innerHTML ของ select ถูกแทนที่ (เช่นเปลี่ยนวันที่ทำให้รายการรอบ Commit เปลี่ยนใหม่) แล้ว sync label กลับให้ตรงอัตโนมัติ ไม่ต้องรอผู้ใช้เปิดเมนูเอง
+        const customSelectSyncers_ = {};
+        // (v99) เดิม option ของ selectReferenceBatch มี emoji 📦 ติดมากับข้อความ (ตัดออกจากตัวข้อความจริงแล้วที่ onReferenceDateSelectedForGenerate) — แทนที่ด้วยไอคอน SVG เส้นบางแบบเดียวกับหัวข้อ "ประวัติชุดข้อมูลที่เคย Commit" ให้เข้ากับสไตล์ไอคอนทั้งระบบ
+        // เก็บเป็น map แยกต่างหาก (ไม่ผูกติดกับตัวข้อความ) เผื่ออนาคตอยากเติมไอคอนให้ custom select ตัวอื่นด้วย ไม่ต้องยุ่งกับข้อความจริงใน option อีก
+        const CUSTOM_SELECT_OPTION_ICONS_ = {
+            selectReferenceBatch: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1.5" style="opacity:.7"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73V8z"/><path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12"/></svg>',
+            // (v101) selectReferenceDate เดิมมี emoji 📅 ติดข้อความ ใช้ไอคอนปฏิทินเส้นบางแบบเดียวกับรายการวันที่ใน "ประวัติ Commit"/"รายงานคุณภาพ" แทน
+            selectReferenceDate: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1.5" style="opacity:.7"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
+        };
+        function escapeHtmlForCustomSelect_(str) {
+            return String(str).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+        function initCustomSelect_(selectId) {
+            const select = document.getElementById(selectId);
+            const wrap = select && select.closest('.custom-select-wrap');
+            if (!select || !wrap) return;
+            const trigger = wrap.querySelector('.custom-select-trigger');
+            const label = wrap.querySelector('.custom-select-trigger-label');
+            const menu = wrap.querySelector('.custom-select-menu');
+            if (!trigger || !label || !menu) return;
+            const optionIcon_ = CUSTOM_SELECT_OPTION_ICONS_[selectId] || '';
+
+            function optionDisplayHtml_(opt) {
+                const icon = opt.value !== '' ? optionIcon_ : ''; // ตัวเลือก placeholder ("-- เลือก... --") ไม่ต้องมีไอคอนนำหน้า
+                return icon + escapeHtmlForCustomSelect_(opt.textContent);
+            }
+            function syncLabel_() {
+                const opt = select.options[select.selectedIndex];
+                label.innerHTML = opt ? optionDisplayHtml_(opt) : '';
+            }
+            // (v105) excelUniqueValues มี disabled จริงตอนยังไม่ได้เลือกคอลัมน์ที่จะกรอง — sync สถานะ disabled ไปที่ปุ่ม trigger จริงด้วย (เป็น <button> ปกติ ใช้ .disabled ธรรมดา เบราว์เซอร์กันคลิก/ปรับ cursor ให้เองอัตโนมัติ ไม่ต้องเขียนเช็คเอง)
+            function syncDisabled_() {
+                trigger.disabled = select.disabled;
+            }
+            function closeMenu_() {
+                menu.classList.remove('open');
+                trigger.classList.remove('open');
+            }
+            function renderMenu_() {
+                menu.innerHTML = '';
+                Array.prototype.forEach.call(select.options, function (opt, idx) {
+                    const row = document.createElement('div');
+                    row.className = 'custom-select-option' + (idx === select.selectedIndex ? ' selected' : '');
+                    row.setAttribute('role', 'option');
+                    row.innerHTML = optionDisplayHtml_(opt);
+                    if (opt.title) row.title = opt.title; // เก็บ tooltip ข้อความเต็มไว้ (เผื่อ option ไหนข้อความยาวถูกตัดสั้นไว้ เช่น savedPromptsSelect)
+                    row.addEventListener('click', function () {
+                        if (select.selectedIndex !== idx) {
+                            select.selectedIndex = idx;
+                            select.dispatchEvent(new Event('change', { bubbles: true })); // ให้ onchange เดิมของ select ทำงานเหมือนผู้ใช้เลือกเองปกติทุกอย่าง
+                        }
+                        syncLabel_();
+                        closeMenu_();
+                    });
+                    menu.appendChild(row);
+                });
+            }
+            function openMenu_() {
+                syncLabel_(); // กันเผื่อโค้ดที่อื่นเปลี่ยน .value ตรงๆ มาก่อนหน้าโดยไม่ได้ยิง change event
+                renderMenu_();
+                menu.classList.add('open');
+                trigger.classList.add('open');
+            }
+            trigger.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (menu.classList.contains('open')) closeMenu_(); else openMenu_();
+            });
+            document.addEventListener('click', function (e) {
+                if (!wrap.contains(e.target)) closeMenu_();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeMenu_();
+            });
+            new MutationObserver(function () { syncLabel_(); syncDisabled_(); closeMenu_(); }).observe(select, { childList: true, attributes: true, attributeFilter: ['disabled'] });
+            select.addEventListener('change', syncLabel_);
+            syncLabel_();
+            syncDisabled_();
+            customSelectSyncers_[selectId] = syncLabel_;
+        }
+        // เผื่อโค้ด JS เดิมบางจุดตั้งค่า select.value ตรงๆ โดยไม่ผ่านการเลือกจากเมนู/ไม่ยิง change event (เช่นตอนกู้คืนรอบ Commit ที่เคยล็อกไว้จาก Prompt ที่บันทึกไว้) — เรียกฟังก์ชันนี้ต่อท้ายเพื่อ sync label ให้ตรงด้วย
+        function refreshCustomSelectLabel_(selectId) {
+            if (customSelectSyncers_[selectId]) customSelectSyncers_[selectId]();
+        }
+        initCustomSelect_('selectReferenceBatch');
+        initCustomSelect_('selectReferenceDate');
+        initCustomSelect_('savedPromptsSelect');
+        initCustomSelect_('excelFilterColumn');
+        initCustomSelect_('excelUniqueValues');
+        initCustomSelect_('inputDbDialect');
+        initCustomSelect_('batchEditColumn'); // (v109)
+
+        // ==========================================
         // (v77) สลับแสดงผลระหว่าง "Dashboard" กับ "สร้างข้อมูลทดสอบ" ทีละ Section ตาม sidebar ที่กด
         // เป็นฟังก์ชันใหม่ล้วนๆ แค่สลับ display ของ element ที่มี data-app-section — ไม่ลบ/ไม่แตะข้อมูลใน DOM เลย
         // ดังนั้นแม้ตอนนี้จะไม่เห็นตารางผลลัพธ์อยู่ (เพราะอยู่หน้า "สร้างข้อมูลทดสอบ") กด "สร้างข้อมูลทดสอบ" ปุ่มใหญ่ในฟอร์ม
@@ -1437,10 +1796,11 @@
             const dashScreenEl = document.getElementById('dashboardScreen');
             if (name === 'dashboard' && dashScreenEl && !dashScreenEl.classList.contains('hidden') && typeof refreshDashboardStats_ === 'function') refreshDashboardStats_();
             try { window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' }); } catch (e) { /* ข้ามได้ */ }
-            // ดันการ์ด "เซสชันปลอดภัย (Secure Mode)" (การ์ดเดียวใน sidebar footer ที่ไม่มี data-app-section) ลงไปชิดขอบล่าง
-            // เฉพาะตอนอยู่แท็บ Dashboard/สร้างข้อมูลทดสอบ เพื่อให้การ์ดอธิบายของแท็บนั้นๆ ที่อยู่ถัดไปชิดขอบล่างของกล่องฝั่งขวาพอดี
-            const secureModeFooter = document.querySelector('.app-sidebar-footer:not([data-app-section])');
-            if (secureModeFooter) secureModeFooter.classList.toggle('app-sidebar-footer-pin-bottom', name === 'dashboard' || name === 'generate' || name === 'datapreview' || name === 'sqlpreview' || name === 'activitylog' || name === 'commithistory' || name === 'qualityreport' || name === 'usermanagement');
+            // (v119) กล่อง #sqlBlock วัดความสูงจริงไม่ได้ตอนที่แท็บนี้ยัง display:none อยู่ (clientHeight เป็น 0) พอเพิ่งสลับมาแท็บนี้ให้วัดใหม่ + แสดงผลใหม่ทันที
+            // ใช้ requestAnimationFrame รอให้เบราว์เซอร์ apply class .app-section-visible (display:block/flex) เสร็จก่อน ถึงจะอ่านความสูงที่ถูกต้องได้
+            if (name === 'sqlpreview' && typeof displaySqlPage === 'function') {
+                requestAnimationFrame(function () { displaySqlPage(); });
+            }
         }
 
         // หมายเหตุ: การล็อกไม่ให้เลื่อนทั้งหน้า (เลื่อนได้แค่ฝั่งเนื้อหา .app-main) ทำด้วย CSS ล้วนๆ แล้ว (ดู #dashboardScreen / .app-main ใน <style>)
@@ -1482,11 +1842,13 @@
         initDarkModePreference();
 
         let currentPage = 1;
-        const rowsPerPage = 5;
+        const rowsPerPage = 10; // (v146) เปลี่ยนจาก 5 เป็น 10 แถวต่อหน้า ตามที่แจ้ง — ทุกส่วนของการแบ่งหน้า (ข้อความสรุป/ปุ่มเลขหน้า/ปุ่มก่อนหน้า-ถัดไป) อ้างอิงค่านี้ตัวเดียว ไม่ต้องแก้จุดอื่น
         let selectedSchemaImageBase64 = "";
 
         let currentSqlPage = 1;
-        const sqlRowsPerPage = 20; // ปัดเป็นเลขกลมๆ จาก 22 ที่วัดได้จริง (กล่องพอมีที่ว่างเหลือเล็กน้อย แต่ดูสวยกว่าและยังไม่เกินกรอบแน่นอน)
+        // (v119) เดิม hardcode ไว้ที่ 20 (ปัดจาก 22 ที่วัดด้วยมือครั้งเดียวตอนนั้น) ไม่ได้วัดจากขนาดกล่องจริง พอจอ/ความสูงต่างไปจากตอนวัดค่าจะไม่ตรง (พื้นที่ว่างเหลือเกิน หรือเสี่ยงล้น)
+        // เปลี่ยนเป็น let ให้ recalcSqlRowsPerPage_() คำนวณสดจากความสูงกล่อง #sqlBlock จริงแทน (ดูฟังก์ชันด้านล่าง) ค่า 20 นี้เหลือไว้แค่เป็นค่าเริ่มต้นชั่วคราวก่อนคำนวณครั้งแรก
+        let sqlRowsPerPage = 20;
         let totalSqlRowsArray = [];
 
         let isAborted = false;
@@ -1602,7 +1964,8 @@
             const submitBtn = document.getElementById('customConfirmSubmitBtn');
             
             if (icon === "🚪" || icon === "LOGOUT") {
-                iconWrapper.className = "w-12 h-12 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full flex items-center justify-center mx-auto";
+                /* (v125) เปลี่ยนไอคอนประตูจากเทา(slate) เป็นแดง(rose) ตามที่แจ้ง — icon type นี้ใช้เฉพาะกล่องยืนยันออกจากระบบจุดเดียว ไม่กระทบกล่องอื่น */
+                iconWrapper.className = "w-12 h-12 bg-rose-50 dark:bg-rose-950 text-rose-500 dark:text-rose-400 rounded-full flex items-center justify-center mx-auto";
                 svgHolder.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
@@ -2436,7 +2799,7 @@
                 "ยืนยันการออกจากระบบ",
                 "คุณต้องการออกจากระบบใช่หรือไม่?",
                 "LOGOUT",
-                "bg-blue-600 hover:bg-blue-700",
+                "bg-rose-600 hover:bg-rose-700", /* (v125) ปุ่มยืนยัน เปลี่ยนจาก bg-blue-600 (จริงๆ ถูก override เป็นสีดำทั้งระบบอยู่แล้ว ดู .bg-blue-600 ด้านบน) เป็นแดง(rose) ตามที่แจ้ง */
                 async function(confirmed) {
                     if (confirmed) {
                         const outgoingUsername = loggedInUsername;
@@ -2594,7 +2957,7 @@
                 <head>
                     <title>System Activity Audit Report</title>
                     <style>
-                        body { font-family: 'Sarabun', sans-serif; padding: 30px; color: #1e293b; }
+                        body { font-family: 'Noto Sans Thai', sans-serif; padding: 30px; color: #1e293b; }
                         .header { border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 20px; }
                         .title { font-size: 18px; font-weight: bold; margin: 0; }
                         .meta { font-size: 11px; color: #64748b; margin-top: 5px; }
@@ -2799,14 +3162,33 @@
             controlsContainer.appendChild(lastBtn);
         }
 
+        // (v119) วัดความสูงจริงของกล่อง #sqlBlock (คำนวณจาก clientHeight ลบ padding บน-ล่าง) หารด้วยความสูงบรรทัดจริง (lineHeight ตาม font-size + leading-relaxed)
+        // ได้จำนวนบรรทัดที่พอดีกับกล่องเป๊ะๆ ไม่ใช่ค่าคงที่แบบเดิม — ถ้ากล่องยังไม่แสดงผล (display:none ตอนอยู่แท็บอื่น) clientHeight จะเป็น 0 วัดไม่ได้ ให้ข้ามไปก่อนแล้วใช้ค่าล่าสุดที่เคยคำนวณไว้แทน
+        function recalcSqlRowsPerPage_() {
+            const sqlBlock = document.getElementById('sqlBlock');
+            if (!sqlBlock || sqlBlock.clientHeight === 0) return;
+            const cs = getComputedStyle(sqlBlock);
+            const paddingTop = parseFloat(cs.paddingTop) || 0;
+            const paddingBottom = parseFloat(cs.paddingBottom) || 0;
+            let lineHeightPx = parseFloat(cs.lineHeight);
+            if (!lineHeightPx || isNaN(lineHeightPx)) {
+                // เผื่อเบราว์เซอร์บางตัวคืนค่า line-height เป็น 'normal' (ไม่ใช่พิกเซล) คำนวณเองจาก font-size แทน (leading-relaxed ของ Tailwind = 1.625 เท่าของ font-size)
+                lineHeightPx = (parseFloat(cs.fontSize) || 12) * 1.625;
+            }
+            const availableHeight = sqlBlock.clientHeight - paddingTop - paddingBottom;
+            const computedRows = Math.floor(availableHeight / lineHeightPx);
+            sqlRowsPerPage = Math.max(5, computedRows); // กันเผื่อค่าต่ำผิดปกติ (เช่น layout ยังไม่นิ่ง) อย่างน้อยแสดง 5 บรรทัดเสมอ
+        }
+
         function displaySqlPage() {
+            recalcSqlRowsPerPage_(); // (v119) วัดขนาดกล่องจริงใหม่ทุกครั้งที่จะแสดงผล กันกรณีขนาดจอ/กล่องเปลี่ยนไปตั้งแต่ครั้งก่อน
             const sqlBlock = document.getElementById('sqlBlock');
             if (totalSqlRowsArray.length === 0) {
                 sqlBlock.innerHTML = "";
                 renderSqlPaginationControls(0);
                 return;
             }
-            
+
             const startIndex = (currentSqlPage - 1) * sqlRowsPerPage;
             const endIndex = startIndex + sqlRowsPerPage;
             const paginatedSqlRows = totalSqlRowsArray.slice(startIndex, endIndex);
@@ -2814,6 +3196,17 @@
             sqlBlock.innerHTML = highlightSQL(paginatedSqlRows.join('\n'));
             renderSqlPaginationControls(totalSqlRowsArray.length);
         }
+
+        // (v119) ปรับจำนวนบรรทัดต่อหน้าใหม่เวลาผู้ใช้ปรับขนาดหน้าต่างเบราว์เซอร์ (กล่อง #sqlResultsCard ยืด/หดตาม .app-main ที่เหลือ ความสูงกล่อง #sqlBlock จึงเปลี่ยนตามไปด้วย)
+        // เช็คก่อนว่าอยู่แท็บ "สคริปต์คำสั่ง SQL" อยู่จริงหรือไม่ (#sectionSqlPreview.app-section-visible) กันไม่ให้คำนวณ/render ทิ้งเปล่าๆ ตอนอยู่แท็บอื่น + ใส่ debounce กันยิงถี่เกินไประหว่างลากขอบจอ
+        let sqlResizeDebounceTimer_ = null;
+        window.addEventListener('resize', function () {
+            clearTimeout(sqlResizeDebounceTimer_);
+            sqlResizeDebounceTimer_ = setTimeout(function () {
+                const sqlSection = document.getElementById('sectionSqlPreview');
+                if (sqlSection && sqlSection.classList.contains('app-section-visible')) displaySqlPage();
+            }, 200);
+        });
 
         function renderTable() {
             const activeData = pagesData.general;
@@ -2825,23 +3218,27 @@
 
             if (!activeData.rows || activeData.rows.length === 0) {
                 headerContainer.innerHTML = `<tr><th class="px-4 py-3 text-slate-200">No Headers Available</th></tr>`;
+                // (v149) #dataTableScrollWrap โตเติมพื้นที่ว่างได้อีกครั้ง (flex-grow ตอน resultsSection ขยายชิดขอบล่าง sidebar) — ให้ table+แถวข้อความ "ไม่พบชุดข้อมูล" สูงเต็มกล่องด้วย (h-full) ไม่งั้นพื้นหลัง bg-slate-50 จะสูงแค่เนื้อหาจริง เหลือช่องว่างเปล่าด้านล่างอีก
                 tbody.innerHTML = `
-                    <tr>
-                        <td class="px-4 py-8 text-center text-slate-400 dark:text-slate-400 font-medium bg-slate-50 dark:bg-slate-900/50">
+                    <tr class="h-full">
+                        <td class="px-4 py-8 text-center text-slate-400 dark:text-slate-400 font-medium bg-slate-50 dark:bg-slate-900/50 h-full">
                             ไม่พบชุดข้อมูลในระบบ กรุณาระบุเงื่อนไขและกดปุ่มสร้างคำสั่งจำลองข้อมูล
                         </td>
                     </tr>`;
+                document.getElementById('dataTable').classList.add('h-full');
                 renderPaginationControls(0);
                 totalSqlRowsArray = [];
                 displaySqlPage();
-                
+
                 // ซ่อนแถบฟิลเตอร์ & Bulk Edit หากไม่มีชุดข้อมูล
                 document.getElementById('batchEditContainer').classList.add('hidden');
                 return;
             }
 
-            const headers = activeData.headers && activeData.headers.length > 0 
-                            ? activeData.headers.filter(h => h !== 'is_edited') 
+            document.getElementById('dataTable').classList.remove('h-full');
+
+            const headers = activeData.headers && activeData.headers.length > 0
+                            ? activeData.headers.filter(h => h !== 'is_edited')
                             : Object.keys(activeData.rows[0]).filter(h => h !== 'is_edited');
 
             activeData.headers = headers; 
@@ -2989,6 +3386,24 @@
             handleExcelSearch();
         }
 
+        // (v113) สลับการแสดงผลระหว่างแถวรหัสผ่าน+ปุ่มบันทึกลงฐานข้อมูล (#dbSaveActionRow) กับข้อความแจ้งให้ล้างตัวกรองก่อน (#dbSaveFilterHint)
+        // ตามคำขอ: ระหว่างกรอง/ค้นหา/แก้ไขแบบกลุ่มอยู่ ไม่ให้เห็นปุ่มบันทึก ต้องกลับไปหน้าข้อมูลทั้งหมดก่อนถึงจะบันทึกได้ ป้องกันความสับสนว่ากำลังจะบันทึกข้อมูลที่กรองอยู่บางส่วนหรือทั้งหมดกันแน่
+        function toggleDbSaveRowByFilterState_(isFilteringActive) {
+            const saveRow = document.getElementById('dbSaveActionRow');
+            const hint = document.getElementById('dbSaveFilterHint');
+            if (!saveRow || !hint) return;
+            saveRow.classList.toggle('hidden', isFilteringActive);
+            hint.classList.toggle('hidden', !isFilteringActive);
+        }
+
+        // (v113) ปุ่ม/ทางลัด "ล้างตัวกรอง" — เคลียร์คำค้นหาและดรอปดาวน์กรองทั้งสองช่อง กลับไปแสดงข้อมูลทั้งหมด แล้วเปิดให้กดปุ่มบันทึกได้ตามเดิม
+        function clearExcelFilters() {
+            document.getElementById('excelSearchInput').value = '';
+            document.getElementById('excelFilterColumn').value = '';
+            refreshCustomSelectLabel_('excelFilterColumn'); // ตั้งค่า .value ตรงๆ ไม่ยิง 'change' เอง ต้องรีเฟรช label ของ custom dropdown เอง (ดู initCustomSelect_)
+            populateUniqueValues(); // ฟังก์ชันนี้เช็คว่า excelFilterColumn ว่างแล้วจะ disable excelUniqueValues + เรียก handleExcelSearch() ให้เองอยู่แล้ว (รีเซ็ตครบวงจร)
+        }
+
         // ประมวลผลการกรองข้อมูลความเร็วสูงแบบ Real-time
         function handleExcelSearch() {
             const activeData = pagesData.general;
@@ -3024,6 +3439,7 @@
             const filteredCountSpan = document.getElementById('filteredRowsCount');
             
             const isFilteringActive = keyword !== "" || (filterCol !== "" && uniqueVal !== "");
+            toggleDbSaveRowByFilterState_(isFilteringActive); // (v113) ซ่อนปุ่มบันทึกลงฐานข้อมูลไว้ระหว่างกรองข้อมูลอยู่ ต้องล้างตัวกรองก่อนถึงจะบันทึกได้
 
             if (isFilteringActive) {
                 batchContainer.classList.remove('hidden');
@@ -3163,20 +3579,25 @@
             const passInput = document.getElementById('dbConfirmPassword').value;
             const btn = document.getElementById('btnInsertDB');
 
+            // (v110) เดิมแต่ละ state คัดลอก class string แยกกัน 3 จุด เคยหลุด w-full/justify-center ตอน unlock มาแล้วรอบก่อน (ปุ่มเลยดูหลุดกรอบ)
+            // รวมเป็นตัวแปรกลางจุดเดียวกันไม่ให้ 3 state ไม่ตรงกันอีก ต้อง sync กับ class เริ่มต้นใน HTML ของ #btnInsertDB ด้วยเสมอ
+            const BTN_INSERT_DB_LOCKED_ = "px-4 py-2 text-xs font-semibold bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg cursor-not-allowed transition-all flex items-center justify-center gap-1.5 w-full sm:w-auto shadow-sm";
+            const BTN_INSERT_DB_UNLOCKED_ = "px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all flex items-center justify-center gap-1.5 w-full sm:w-auto cursor-pointer";
+
             if (dbPasswordCheckTimer) { clearTimeout(dbPasswordCheckTimer); dbPasswordCheckTimer = null; }
             dbPasswordCheckSeq++; // ยกเลิกผลของการเช็กครั้งก่อนหน้าที่อาจยังค้างรออยู่ (กันปุ่มกระพริบผิดจังหวะถ้าพิมพ์เร็ว)
 
             if (!passInput) {
                 isDbButtonUnlocked = false;
                 btn.disabled = true;
-                btn.className = "px-4 py-1.5 text-xs font-semibold bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg cursor-not-allowed transition-all flex items-center gap-1";
+                btn.className = BTN_INSERT_DB_LOCKED_;
                 return;
             }
 
             // ล็อกปุ่มไว้ก่อนเสมอระหว่างรอผลจาก backend กันกดตอนยังไม่ยืนยันจริง
             isDbButtonUnlocked = false;
             btn.disabled = true;
-            btn.className = "px-4 py-1.5 text-xs font-semibold bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg cursor-not-allowed transition-all flex items-center gap-1";
+            btn.className = BTN_INSERT_DB_LOCKED_;
 
             const mySeq = dbPasswordCheckSeq;
             dbPasswordCheckTimer = setTimeout(async function () {
@@ -3191,11 +3612,11 @@
                 if (result && result.valid) {
                     isDbButtonUnlocked = true;
                     btnNow.disabled = false;
-                    btnNow.className = "px-4 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all flex items-center gap-1 cursor-pointer";
+                    btnNow.className = BTN_INSERT_DB_UNLOCKED_;
                 } else {
                     isDbButtonUnlocked = false;
                     btnNow.disabled = true;
-                    btnNow.className = "px-4 py-1.5 text-xs font-semibold bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600 rounded-lg cursor-not-allowed transition-all flex items-center gap-1";
+                    btnNow.className = BTN_INSERT_DB_LOCKED_;
                 }
             }, 450);
         }
@@ -3736,7 +4157,7 @@
             }).join('');
 
             body.innerHTML = `
-                <table class="w-full text-left border-collapse">
+                <table class="min-w-full text-left border-collapse">
                     <thead class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase text-[10px]">
                         <tr>
                             <th class="p-2 w-8"></th>
@@ -4053,13 +4474,68 @@
                     ${headers.map(h => `<td class="p-2 whitespace-nowrap">${row[h] !== undefined && row[h] !== null ? row[h] : ''}</td>`).join('')}
                 </tr>`).join('');
 
+            // (v90) เดิม table เป็น class="w-full" (width:100% ตายตัวเท่าความกว้าง container) + เซลล์เป็น whitespace-nowrap ห้ามตัดคำ
+            // พอคอลัมน์เยอะ/ข้อความยาว เนื้อหาแต่ละเซลล์เลยแค่ล้นออกนอกเซลล์/ถูกบังกัน แต่ตัวตารางเองไม่ยอมกว้างเกิน container เลย ทำให้ container (overflow-auto) ไม่มีอะไรให้เลื่อนดูจริง คอลัมน์ท้ายๆ เลยโดนตัดมองไม่เห็น
+            // เปลี่ยนเป็น min-w-full (กว้างอย่างน้อยเท่า container แต่ขยายกว้างกว่านั้นได้ถ้าเนื้อหาต้องการ) ตารางจะยืดกว้างเกิน container ได้จริงตามจำนวน/ความยาวคอลัมน์ ทำให้ overflow-auto ของ container โชว์แถบเลื่อนแนวนอนให้เลื่อนดูได้ครบทุกคอลัมน์
             body.innerHTML = `
-                <table class="w-full text-left border-collapse">
+                <div class="dh-detail-table-scroll" id="dhDetailTableScroll">
+                <table class="min-w-full text-left border-collapse whitespace-nowrap">
                     <thead class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase text-[10px]">
                         <tr>${theadHtml}</tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
-                </table>` + buildPaginationHtml_(dhDetailPage, detail.rows.length, DH_DETAIL_ROWS_PER_PAGE, 'goToDhDetailPage');
+                </table>
+                </div>
+                <div class="dh-detail-hbar-track" id="dhDetailHbarTrack"><div class="dh-detail-hbar-thumb" id="dhDetailHbarThumb"></div></div>` + buildPaginationHtml_(dhDetailPage, detail.rows.length, DH_DETAIL_ROWS_PER_PAGE, 'goToDhDetailPage');
+            // (v151) div.dh-detail-table-scroll ถูกสร้างใหม่ทุกครั้งที่ render (innerHTML) เลยต้องเรียก enableDragScroll_ ซ้ำทุกรอบ
+            // ให้ลาก/มีเคอร์เซอร์รูปมือเหมือนกล่องตารางอื่นๆ ในระบบ (dataTableScrollWrap ฯลฯ ผูกครั้งเดียวตอนโหลดหน้าเว็บได้เพราะ element เดิมไม่ถูกสร้างใหม่)
+            enableDragScroll_(body.querySelector('.dh-detail-table-scroll'));
+            // (v153) แถบเลื่อน native (::-webkit-scrollbar) ขึ้นอยู่กับเบราว์เซอร์/OS มากเกินไป (Safari/บาง Chrome ยังซ่อนอยู่ดี) — ทำแถบเลื่อนของเราเองแทน (div ธรรมดา) ที่คลิก/ลากได้จริงชัวร์ทุกเบราว์เซอร์ ไม่พึ่ง native scrollbar เลย
+            initDhDetailHScrollbar_();
+        }
+
+        function initDhDetailHScrollbar_() {
+            const wrap = document.getElementById('dhDetailTableScroll');
+            const track = document.getElementById('dhDetailHbarTrack');
+            const thumb = document.getElementById('dhDetailHbarThumb');
+            if (!wrap || !track || !thumb) return;
+            function syncThumb() {
+                const overflowAmount = wrap.scrollWidth - wrap.clientWidth;
+                if (overflowAmount <= 1) { track.classList.remove('show'); return; }
+                track.classList.add('show');
+                const trackW = track.clientWidth;
+                const thumbW = Math.max(30, trackW * (wrap.clientWidth / wrap.scrollWidth));
+                const maxThumbLeft = trackW - thumbW;
+                const ratio = wrap.scrollLeft / overflowAmount;
+                thumb.style.width = thumbW + 'px';
+                thumb.style.left = (maxThumbLeft * ratio) + 'px';
+            }
+            syncThumb();
+            wrap.addEventListener('scroll', syncThumb);
+            window.addEventListener('resize', syncThumb);
+            let dragging = false, startX = 0, startLeft = 0;
+            thumb.addEventListener('mousedown', function (e) {
+                dragging = true; startX = e.clientX; startLeft = thumb.offsetLeft;
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+            window.addEventListener('mousemove', function (e) {
+                if (!dragging) return;
+                const trackW = track.clientWidth, thumbW = thumb.offsetWidth;
+                let newLeft = Math.max(0, Math.min(trackW - thumbW, startLeft + (e.clientX - startX)));
+                thumb.style.left = newLeft + 'px';
+                wrap.scrollLeft = (newLeft / (trackW - thumbW)) * (wrap.scrollWidth - wrap.clientWidth);
+            });
+            window.addEventListener('mouseup', function () {
+                if (dragging) { dragging = false; document.body.style.userSelect = ''; }
+            });
+            track.addEventListener('mousedown', function (e) {
+                if (e.target === thumb) return;
+                const rect = track.getBoundingClientRect(), thumbW = thumb.offsetWidth;
+                let newLeft = Math.max(0, Math.min(track.clientWidth - thumbW, (e.clientX - rect.left) - thumbW / 2));
+                thumb.style.left = newLeft + 'px';
+                wrap.scrollLeft = (newLeft / (track.clientWidth - thumbW)) * (wrap.scrollWidth - wrap.clientWidth);
+            });
         }
 
         function goToDhDetailPage(n) {
@@ -4208,9 +4684,10 @@
                 }
                 seen[key].count++;
             });
+            // (v101) ตัด emoji 📅 หน้าข้อความออก — เปลี่ยนไปใช้ไอคอนปฏิทิน SVG แทนในชั้นแสดงผลของ custom dropdown (ดู CUSTOM_SELECT_OPTION_ICONS_ ท้ายสคริปต์)
             dateSelect.innerHTML = '<option value="">-- เลือกวันที่ --</option>' +
                 dateGroups.map(g =>
-                    `<option value="${g.key}">📅 ${g.key === 'ไม่ทราบวันที่' ? g.key : formatThaiDateLabelFromKey_(g.key)} (${g.count} รอบ Commit)</option>`
+                    `<option value="${g.key}">${g.key === 'ไม่ทราบวันที่' ? g.key : formatThaiDateLabelFromKey_(g.key)} (${g.count} รอบ Commit)</option>`
                 ).join('');
         }
 
@@ -4231,10 +4708,17 @@
             }
             const batchesForDate = referenceBatchListForGenerate.filter(b => (b.dateKey || 'ไม่ทราบวันที่') === dateKey);
             batchRow.classList.remove('hidden');
-            batchSelect.innerHTML = '<option value="">-- เลือกรอบข้อมูลของวันนี้ --</option>' +
-                batchesForDate.map(b =>
-                    `<option value="${b.batchIndex}">${b.label} (${b.rowCount} แถว, ${b.columnCount} คอลัมน์)</option>`
-                ).join('');
+            // (v99) ตัด emoji 📦 หน้าข้อความออกจาก label ที่นี่ (ก่อนใส่ลง option) — เปลี่ยนไปใช้ไอคอน SVG เส้นบางแทนแล้วในชั้นแสดงผลของ custom dropdown (ดู CUSTOM_SELECT_OPTION_ICONS_ ท้ายสคริปต์) ให้เข้ากับสไตล์ไอคอนทั้งระบบแทน emoji เดิม
+            // (v100) label เต็มของ b ยาวมาก (ชื่อข้อมูล | ตาราง: ... | ผู้บันทึก: ... | วันที่เวลา | จำนวนแถว) พอมาแสดงในช่องแคบๆ นี้เลยโดน ... ตัดจนอ่านไม่รู้เรื่องว่าเป็นรอบไหน
+            // ตามที่แจ้ง: ตัดเหลือแค่ 2 ส่วนแรกพอ คือ "ชื่อข้อมูล" กับ "ตาราง: ชื่อตาราง" (ยังคง label เต็มไว้ใช้อ้างอิง/เทียบค่าในโค้ดจุดอื่นเหมือนเดิมทุกจุด แค่ตัดเฉพาะข้อความที่ "แสดงผล" ในช่องนี้เท่านั้น)
+            // (v102) เดิมข้อความ placeholder ของช่องนี้เป็น "-- เลือกรอบข้อมูลของวันนี้ --" ตายตัวเสมอ ไม่อ้างอิงวันที่ที่เพิ่งเลือกในช่องด้านบนเลย ทำให้ดูไม่ชัดว่ากำลังเลือกรอบของวันไหนอยู่
+            // เปลี่ยนให้ดึงวันที่ที่เลือกจริง (dateKey) มาแทรกในข้อความ placeholder แทน เช่น "-- เลือกรอบข้อมูลของวันที่ 23 กรกฎาคม 2569 --"
+            const selectedDateLabel_ = dateKey === 'ไม่ทราบวันที่' ? dateKey : formatThaiDateLabelFromKey_(dateKey);
+            batchSelect.innerHTML = `<option value="">-- เลือกรอบข้อมูลของวันที่ ${selectedDateLabel_} --</option>` +
+                batchesForDate.map(b => {
+                    const shortLabel = String(b.label).replace(/^\u{1F4E6}\s*/u, '').split('|').map(s => s.trim()).slice(0, 2).join(' | ');
+                    return `<option value="${b.batchIndex}">${shortLabel}</option>`;
+                }).join('');
         }
 
         // (v71) ลบรอบข้อมูลที่กำลังเลือกอยู่ในตอนนั้นออกจาก GeneratedDatasets ถาวร — ใช้ action เดิม deleteGeneratedDatasetBatch
@@ -4476,7 +4960,7 @@
 
             body.innerHTML = `
                 ${bannerHtml}
-                <table class="w-full text-left border-collapse">
+                <table class="min-w-full text-left border-collapse">
                     <thead class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase text-[10px]">
                         <tr>
                             <th class="p-2">Username</th>
@@ -4795,9 +5279,11 @@
 
             document.getElementById('excelSearchInput').value = "";
             document.getElementById('excelFilterColumn').selectedIndex = 0;
+            refreshCustomSelectLabel_('excelFilterColumn'); // (v105) ตั้งค่า .selectedIndex ตรงๆ แบบนี้ไม่ยิง change event ให้เอง ต้อง sync label ของ custom dropdown ด้วยมือ
             document.getElementById('excelUniqueValues').innerHTML = '<option value="">-- กรองค่าที่ซ้ำ --</option>';
             document.getElementById('excelUniqueValues').disabled = true;
             excelFilteredRows = null;
+            toggleDbSaveRowByFilterState_(false); // (v113) สร้างข้อมูลใหม่ = ล้างตัวกรองไปด้วยในตัว ต้องโชว์ปุ่มบันทึกกลับมาเผื่อก่อนหน้านี้ถูกซ่อนไว้ตอนกรองอยู่
 
             document.getElementById('tabGeneralIncome').innerText = type;
             document.getElementById('tableTitle').innerText = "หน้าจอตรวจสอบข้อมูล (Data Preview)";
@@ -4871,6 +5357,7 @@
             document.getElementById('inputType').value = p.data_type || '';
             document.getElementById('inputTableName').value = p.table_name || '';
             document.getElementById('inputDbDialect').value = p.dialect || 'PostgreSQL';
+            refreshCustomSelectLabel_('inputDbDialect'); // (v106) ตั้งค่า .value ตรงๆ แบบนี้ไม่ยิง change event ให้เอง ต้อง sync label ของ custom dropdown ด้วยมือ
             document.getElementById('inputRows').value = p.rows_requested || '';
             document.getElementById('inputAllowNull').checked = (p.allow_null === true || p.allow_null === 'TRUE' || p.allow_null === 'true');
             document.getElementById('inputStructureScript').value = p.structure_script || p.ddl_script || '';
@@ -4908,8 +5395,10 @@
                     if (matchedBatch) {
                         const dateKey = matchedBatch.dateKey || 'ไม่ทราบวันที่';
                         document.getElementById('selectReferenceDate').value = dateKey;
+                        refreshCustomSelectLabel_('selectReferenceDate'); // (v101) ตั้งค่า .value ตรงๆ แบบนี้ไม่ยิง change event ให้เอง ต้อง sync label ของ custom dropdown ด้วยมือ (ไม่มีการ render option ใหม่ตรงนี้ให้ MutationObserver จับ)
                         onReferenceDateSelectedForGenerate();
                         document.getElementById('selectReferenceBatch').value = matchedBatch.batchIndex;
+                        refreshCustomSelectLabel_('selectReferenceBatch'); // (v98) ตั้งค่า .value ตรงๆ แบบนี้ไม่ยิง change event ให้เอง ต้อง sync label ของ custom dropdown ด้วยมือ
                         await onReferenceBatchSelectedForGenerate(); // โหลดคอลัมน์ของรอบนี้เข้ามาให้ติ๊กต่อ
                         document.querySelectorAll('#referenceColumnsContainer .reference-column-checkbox').forEach(cb => {
                             cb.checked = savedReferenceColumns.includes(cb.value);
@@ -5236,6 +5725,7 @@
             totalSqlRowsArray = [];
 
             excelFilteredRows = null;
+            toggleDbSaveRowByFilterState_(false); // (v113) รีเซ็ตทั้งหมด = ไม่มีตัวกรองค้างอยู่ ต้องโชว์ปุ่มบันทึกกลับมา
 
             renderDashboardValidationWarning(null);
             renderQualityScore(null);
@@ -5252,6 +5742,7 @@
             // เลิกเลือก Prompt ที่เคยบันทึกไว้ (ใช้ซ้ำได้) กลับไปเป็นค่า default ด้วย ไม่ให้ค้างเป็นตัวที่เคยเลือกไว้ก่อนกดรีเซ็ต
             const savedPromptsSelectEl = document.getElementById('savedPromptsSelect');
             if (savedPromptsSelectEl) savedPromptsSelectEl.value = "";
+            refreshCustomSelectLabel_('savedPromptsSelect'); // (v104) ตั้งค่า .value ตรงๆ แบบนี้ไม่ยิง change event ให้เอง ต้อง sync label ของ custom dropdown ด้วยมือ
 
             removeSchemaImage();
 
@@ -5275,8 +5766,8 @@
             showCustomConfirm(
                 "ยืนยันการรีเซ็ตข้อมูลระบบ",
                 "ระบบจะล้างข้อมูลที่คุณกรอกและคืนค่าเริ่มต้นของตารางทั้งหมด (ประวัติการใช้งานของคุณจะยังคงถูกบันทึกไว้อย่างปลอดภัย) คุณต้องการดำเนินการต่อใช่ไหม?",
-                "RESET", 
-                "bg-rose-600 hover:bg-rose-700",
+                "RESET_AMBER", /* (v124) เดิมใช้ "RESET" ซึ่งไปใช้ร่วมกับ "ยืนยันการขอลบบัญชี" ด้วย (ยังอยากให้เป็นสีแดงตามเดิม ไม่ได้ขอเปลี่ยน) เปลี่ยนมาใช้ค่าใหม่เฉพาะจุดนี้ ตกลงไปเข้าเงื่อนไข else (สีเหลือง/amber) แทน โดยไม่กระทบกล่องยืนยันอื่นที่แชร์ "RESET" อยู่ */
+                "bg-amber-600 hover:bg-amber-500", /* (v123) ปุ่มยืนยัน เปลี่ยนจากแดง(rose) เป็นเหลือง(amber) ให้เข้ากับปุ่ม "รีเซ็ตข้อมูล" หลักที่เปลี่ยนเป็นเหลืองไปแล้วก่อนหน้านี้ */
                 function(confirmed) {
                     if (confirmed) {
                         resetDataStructuresOnly();
