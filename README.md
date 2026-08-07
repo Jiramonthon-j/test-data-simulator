@@ -1,3 +1,6 @@
+![HTML5](https://img.shields.io/badge/Frontend-HTML5%20%2F%20JS-orange)
+![Google Apps Script](https://img.shields.io/badge/Backend-Google%20Apps%20Script-4285F4)
+![GitHub Pages](https://img.shields.io/badge/Deployment-GitHub%20Pages-222222)
 # Intelligent Test Data Simulator
 
 > An AI-assisted synthetic test data generation tool designed for QA Automation and Software Testing workflows. Supports custom JSON schemas, complex ER Diagrams, and edge-case dataset synthesis while adhering to PDPA/data privacy standards.
