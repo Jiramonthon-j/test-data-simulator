@@ -139,12 +139,13 @@
             overflow: hidden;
             min-height: 0;
         }
-        /* (v154) Responsive: จอแคบกว่า 900px (มือถือ/แท็บเล็ต) ไม่มีพื้นที่พอให้ sidebar 220px คงที่ + เนื้อหาหลักอยู่คู่กันแบบเดิมได้สบายๆ อีกต่อไป
+        /* (v155) Responsive: จอแคบกว่า 1024px (มือถือ/แท็บเล็ต/จอเล็ก) ไม่มีพื้นที่พอให้ sidebar 220px คงที่ + เนื้อหาหลักอยู่คู่กันแบบเดิมได้สบายๆ อีกต่อไป
            เปลี่ยน sidebar เป็นแผงลอย (off-canvas) ที่ซ่อนไว้นอกจอทางซ้ายเป็นค่าเริ่มต้น แล้วเลื่อนเข้ามาทับหน้าจอ (fixed + translateX) เมื่อกดปุ่มแฮมเบอร์เกอร์ (.app-hamburger-btn ที่โผล่เฉพาะจอแคบ) พร้อมฉากทึบครึ่งหนึ่ง (.app-sidebar-backdrop) ไว้แตะเพื่อปิด
-           เนื้อหาหลัก (.app-main) กว้างเต็มจอเสมอตอนจอแคบ ไม่ต้องแบ่งพื้นที่กับ sidebar อีกต่อไป */
+           เนื้อหาหลัก (.app-main) กว้างเต็มจอเสมอตอนจอแคบ ไม่ต้องแบ่งพื้นที่กับ sidebar อีกต่อไป
+           (เดิม breakpoint นี้อยู่ที่ 900px แยกกับอีก @media (max-width: 1024px) คนละก้อนที่ทำ sidebar เป็นแถวนอนแทน (position:static) — พอสองก้อนซ้อนกันตอนจอ ≤900px กฎของก้อน 1024px (มาทีหลังในไฟล์) ชนะทับ position:fixed ของก้อนนี้ไปเฉยๆ (specificity เท่ากัน กฎหลังชนะ) ทำให้ off-canvas drawer ใช้งานจริงไม่ได้เลยบนมือถือจริง รวมก้อนเป็นอันเดียวที่ 1024px แทน ไม่ให้มีจอไหนโดนสองกฎขัดกันอีก) */
         .app-hamburger-btn { display: none; }
         .app-sidebar-backdrop { display: none; }
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
             .app-shell { padding: 12px 12px 32px; gap: 0; }
             .app-hamburger-btn {
                 display: inline-flex; align-items: center; justify-content: center;
@@ -338,18 +339,8 @@
         .dark .app-sidebar-footer-sub { color: #cfcfcb; }
         .app-sidebar-footer-version { font-size: 8.5px; opacity: .68; margin: 2px 0 0; }
 
-        @media (max-width: 1024px) {
-            .app-shell { flex-direction: column; }
-            .app-sidebar { width: 100%; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; }
-            .app-navlist { flex-direction: row; flex-wrap: wrap; flex: none; min-height: auto; overflow-y: visible; }
-            .app-sidebar-footer { margin-top: 0; }
-            /* จอเล็ก: กลับไปเลื่อนทั้งหน้าตามปกติ ไม่ล็อกความสูงแบบจอใหญ่ เพราะพื้นที่ไม่พอจะยัด sidebar (ที่กลายเป็นแถวนอนด้านบน) + เนื้อหาไว้ในจอเดียวได้ */
-            #dashboardScreen { height: auto; overflow: visible; }
-            .app-shell { height: auto; }
-            .app-main { overflow: visible; min-height: auto; }
-            .app-content-scroll { overflow: visible; min-height: auto; }
-            .app-sidebar { overflow: visible; }
-        }
+        /* (v155) เอาก้อน @media (max-width: 1024px) เดิมที่เคยทำ sidebar เป็นแถวนอน (position:static) + ปลดล็อกให้ทั้งหน้าเลื่อนแทนออกไปแล้ว — รวมเข้ากับก้อน off-canvas drawer ด้านบนเป็นก้อนเดียวที่ 1024px แล้ว (ดู comment ด้านบน)
+           ไม่ต้องปลดล็อกความสูง/overflow ของ #dashboardScreen/.app-main/.app-content-scroll อีกต่อไปด้วย เพราะ sidebar แบบ off-canvas ไม่กินพื้นที่ในหน้า flow เลยตอนปิดอยู่ (position:fixed) รูปแบบ "ล็อก 100vh เลื่อนเฉพาะเนื้อหา" แบบจอใหญ่ยังใช้ได้ปกติทุกขนาดจอ ไม่ต้องมีเงื่อนไขพิเศษแยกอีก */
 
         /* ================= Auth screen: แผงภาพประกอบ + canvas particle ================= */
         /* ล็อกหน้า login/register ให้พอดีจอเดียวเหมือนหน้า Dashboard — ตัวหน้าเว็บทั้งหน้าเลื่อนไม่ได้ กล่องฟอร์มฝั่งขวา (.auth-form-panel) ก็ล็อกห้ามเลื่อนเช่นกัน จึงต้องคุมระยะห่าง/ขนาดตัวอักษรภายในให้พอดีกับความสูงจอเสมอ (โดยเฉพาะฟอร์มสมัครสมาชิกขั้นตอนที่ 1 ที่มีฟิลด์เยอะ) แผงภาพประกอบฝั่งซ้ายอยู่นิ่งกับที่เสมอ */
