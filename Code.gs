@@ -33,11 +33,12 @@ const SHEET_NAMES = {
   QUALITY: 'QualityScores'
 };
 
-// โมเดล Gemini ที่จะเรียกใช้ — ใช้ alias "gemini-flash-latest" เพื่อให้ชี้ไปยังรุ่น Flash ล่าสุดที่ Google รองรับเสมอ
-// (กัน error "model no longer available" ที่เกิดขึ้นเมื่อ Google เลิกรองรับรุ่นเก่าแล้วบังคับให้ผู้ใช้ใหม่ต้องใช้รุ่นใหม่กว่า)
-// รองรับ Free Tier (ไม่ต้องผูกบัตรเครดิต) และรับรูปภาพ (vision) ได้ด้วย
-// ถ้าต้องการล็อกรุ่นตายตัวแทน ดูรายชื่อรุ่นที่รองรับได้ที่ https://ai.google.dev/gemini-api/docs/models
-const GEMINI_MODEL = 'gemini-flash-latest';
+// โมเดล Gemini ที่จะเรียกใช้ — ล็อกรุ่นตายตัวไว้ที่ "gemini-2.5-flash" (Stable รุ่นก่อนหน้า ไม่ใช่รุ่นล่าสุด)
+// เดิมเคยใช้ alias "gemini-flash-latest" เพื่อให้ชี้ไปยังรุ่นล่าสุดเสมอ แต่พบว่า alias นี้สลับไปรุ่นใหม่ (เช่น Gemini 3.7 Flash) อัตโนมัติทุกครั้งที่ Google ปล่อยรุ่นใหม่
+// และรุ่นที่เพิ่งเปิดตัวใหม่ๆ มักเจอปัญหา HTTP 503 "high demand" บ่อยกว่าปกติมาก เพราะคนแห่ไปใช้พร้อมกันจน capacity ฝั่ง Google ยังรองรับไม่ทัน
+// จึงเปลี่ยนมาล็อกรุ่นที่นิ่งแล้วแทน ลดโอกาสเจอ 503 ได้มาก แต่ข้อเสียคือจะไม่ได้อัปเดตตามรุ่นใหม่อัตโนมัติอีกต่อไป ต้องมาเปลี่ยนค่านี้เองถ้าต้องการอัปเกรดในอนาคต
+// รองรับ Free Tier (ไม่ต้องผูกบัตรเครดิต) และรับรูปภาพ (vision) ได้ด้วยเหมือนเดิม — ดูรายชื่อรุ่นอื่นที่รองรับได้ที่ https://ai.google.dev/gemini-api/docs/models
+const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent';
 const GEMINI_MAX_TOKENS = 16000;
 
