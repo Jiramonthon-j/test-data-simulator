@@ -3063,8 +3063,11 @@ function callGemini_(promptText, imageBase64) {
   };
 
   // Free tier ของ Gemini มี rate limit ต่อนาทีค่อนข้างต่ำ ถ้าชนโควตา (HTTP 429) มักหายเองภายในไม่กี่วินาที
-  // จึงลองซ้ำอัตโนมัติสูงสุด 3 ครั้ง โดยรอตามเวลาที่ Gemini แนะนำมา (หรือ 5 วิ ถ้าไม่มีคำแนะนำ) ก่อนพังจริง
-  const maxAttempts = 3;
+  // ส่วน HTTP 503/5xx คือเซิร์ฟเวอร์ Gemini โหลดสูงชั่วคราวฝั่ง Google เอง (คนละสาเหตุกับโควตา) บางครั้งใช้เวลานานกว่าจะหาย
+  // จึงแยกเพดานจำนวนครั้ง retry ของ 2 กรณีนี้ออกจากกัน — maxAttempts คือเพดานรวมของ loop (สูงสุดจริง)
+  // ส่วน maxQuotaAttempts จำกัด retry เฉพาะกรณี 429 ให้น้อยกว่า เพราะแต่ละครั้งรอได้นานสุดถึง 65 วิ ถ้าปล่อยให้ retry มากเท่า 503 รวมกันอาจรอนานเกิน execution limit 6 นาทีของ Apps Script
+  const maxAttempts = 6;
+  const maxQuotaAttempts = 3;
   let code, bodyText, body;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     recordGeminiApiCall_(); // นับ request จริงทุก attempt (รวม retry) ไว้ประมาณการ % โควตาที่ใช้ไป
@@ -3078,7 +3081,7 @@ function callGemini_(promptText, imageBase64) {
       // บันทึกไว้เป็นเวลาที่โควตาจะว่างจริง ให้หน้าเว็บใช้แสดง Cooldown ที่แม่นยำกว่าการนับจำนวนครั้งเอง และอยู่ทน ข้าม logout/reset ได้เพราะเก็บฝั่งเซิร์ฟเวอร์
       const waitSec = extractRetryDelaySeconds_(body) || 5;
       recordGeminiCooldown_(waitSec);
-      if (attempt < maxAttempts) {
+      if (attempt < maxQuotaAttempts) {
         // เดิมจำกัดรอสูงสุดแค่ 20 วิ แต่ free tier บางครั้งขอให้รอเกือบ 60 วิถึงจะเคลียร์โควตา (เจอจริงจาก error: "Please retry in 59s")
         // รอไม่พอ = ลองซ้ำแล้วก็ยังชนโควตาเดิมอยู่ดี จึงขยับเพดานเป็น 65 วิ ให้รอได้นานพอจริงๆ (ยังปลอดภัยเทียบกับ execution limit 6 นาทีของ Apps Script)
         Utilities.sleep(Math.min(Math.ceil(waitSec) + 2, 65) * 1000);
@@ -3086,9 +3089,9 @@ function callGemini_(promptText, imageBase64) {
       }
     } else if (code === 503 || code === 500 || code === 502 || code === 504) {
       // เซิร์ฟเวอร์ Gemini โหลดสูงชั่วคราว (ฝั่ง Google เอง) — ไม่ใช่โควตา/token ของเราหมด จึงไม่ต้องบันทึก Cooldown
-      // ปกติหายเองภายในไม่กี่วินาที จึงลองซ้ำได้เลยโดยรอสั้นๆ แบบ exponential backoff (2 วิ, 4 วิ)
+      // ลองซ้ำได้มากครั้งกว่ากรณีโควตา (สูงสุด maxAttempts ครั้ง) เพราะรอแต่ละครั้งสั้นกว่ามาก — exponential backoff เพดาน 20 วิ (3, 6, 9, 12, 15 วิ ตามลำดับ attempt)
       if (attempt < maxAttempts) {
-        Utilities.sleep(2000 * attempt);
+        Utilities.sleep(Math.min(3000 * attempt, 20000));
         continue;
       }
     } else if (code === 200) {
