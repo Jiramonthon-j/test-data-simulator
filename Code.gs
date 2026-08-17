@@ -2893,6 +2893,22 @@ function buildSmartPrompt_(p, schemaConfig, rowsRequested, allowNull) {
     );
   }
 
+  // (fix) รองรับ "อ้างอิงข้อมูลจากชุดที่เคย Commit" — หน้าเว็บส่ง p.referenceColumns/p.referenceRows มาให้ตั้งแต่แรกอยู่แล้ว
+  // แต่ backend ไม่เคยอ่านค่านี้มาใช้เลย (บั๊กเดิม ทำให้ติ๊กออปชันนี้แล้วไม่มีผลอะไรกับข้อมูลที่ AI สร้างจริง — AI จึงแต่งข้อมูลขึ้นเองทั้งหมดแทนที่จะใช้ของจริง)
+  // แก้โดยแนบรายการข้อมูลจริงที่ผู้ใช้เลือกไว้ลงใน prompt ตรงๆ แล้วสั่งให้ AI ต้องสุ่มเลือกใช้ค่าจากรายการนี้เท่านั้น ห้ามสร้างค่าใหม่เอง
+  if (p.referenceColumns && p.referenceColumns.length && p.referenceRows && p.referenceRows.length) {
+    const MAX_REFERENCE_ROWS = 200; // กันไม่ให้ prompt ยาวเกินไปถ้าชุดข้อมูลอ้างอิงมีเยอะมาก — ตัดเหลือแค่ตัวอย่างที่พอเพียง
+    const sampleRefRows = p.referenceRows.length > MAX_REFERENCE_ROWS
+      ? p.referenceRows.slice(0, MAX_REFERENCE_ROWS)
+      : p.referenceRows;
+    parts.push(
+      'มีข้อมูลจริงที่มีอยู่แล้วในระบบ (จากชุดข้อมูลที่เคย Commit ไปก่อนหน้า) สำหรับคอลัมน์ต่อไปนี้: ' + p.referenceColumns.join(', ') +
+      ' — ห้ามสร้างค่าใหม่ขึ้นเองในคอลัมน์เหล่านี้โดยเด็ดขาด ต้องเลือกใช้ค่าจากรายการข้อมูลจริงด้านล่างนี้เท่านั้น (เลือกสุ่มแถวจากรายการนี้ไปใช้ในแต่ละแถวที่สร้าง ถ้าจำนวนแถวที่ขอมากกว่าจำนวนข้อมูลอ้างอิง ให้เลือกซ้ำได้ตามความสมเหตุสมผล) ' +
+      'ค่าที่อยู่ในแถวเดียวกันของรายการอ้างอิงนี้ต้องนำมาใช้คู่กันเสมอ (เช่น ถ้าเลือก EMPLOYEE ID ของแถวไหน ต้องใช้ EMPLOYEE NAME/DEPARTMENT ของแถวเดียวกันนั้นด้วย ห้ามผสมข้ามแถวกันเอง):\n' +
+      JSON.stringify(sampleRefRows)
+    );
+  }
+
   if (schemaConfig && schemaConfig.allowedColumns && schemaConfig.allowedColumns.length) {
     let hint = 'ควรเลือกใช้ชื่อคอลัมน์จากชุดที่ระบบอนุญาตนี้เท่านั้น (เลือกเฉพาะที่จำเป็นและเกี่ยวข้องกับข้อมูลที่ขอ ไม่จำเป็นต้องใช้ครบทุกตัว): '
       + schemaConfig.allowedColumns.join(', ') + '.';
