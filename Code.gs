@@ -1539,6 +1539,9 @@ function handleRequest_(e) {
       case 'getQualityScores':
         result = handleGetQualityScores_(payload);
         break;
+      case 'getDashboardStats':
+        result = handleGetDashboardStats_(payload);
+        break;
       case 'getSavedImage':
         result = handleGetSavedImage_(payload);
         break;
@@ -3613,6 +3616,73 @@ function parseGeneratedDatasetBatches_() {
     }
   }
   return batches;
+}
+
+// (fix) สถิติการ์ดหัว Dashboard (รอบข้อมูลที่ Commit สำเร็จทั้งหมด / ความน่าเชื่อถือเฉลี่ย / แถบข้อมูลหนาแน่น / badge คำขอค้างของแอดมิน)
+// หน้าเว็บส่ง action นี้มาเรียกอยู่แล้วตั้งแต่แรก (ดู refreshDashboardStats_ ใน Final.html) แต่ backend ไม่เคยมี case นี้เลย (บั๊กเดิม — โดน default case จับแล้วตอบ error เงียบๆ การ์ดเลยค้างที่ "–" ตลอด ไม่ใช่โหลดช้า)
+function handleGetDashboardStats_(p) {
+  try {
+    const quality = collectQualitySummary_();
+
+    let totalCommittedBatches = 0;
+    try {
+      totalCommittedBatches = parseGeneratedDatasetBatches_().length;
+    } catch (e) {
+      // ชีต GeneratedDatasets ว่าง/รูปแบบยังไม่ถูกต้อง ถือว่ายังไม่มีรอบ Commit เลย ไม่ควรทำให้สถิติทั้งก้อนพังไปด้วย
+    }
+
+    const dataVolume = computeDashboardDataVolume_();
+
+    // adminPendingCount ส่งเฉพาะ Super_Admin เท่านั้น (role อื่นไม่มีสิทธิ์เห็น/จัดการคำขอค้างอยู่แล้ว) — ส่ง null ถ้าไม่ใช่ Super_Admin ให้หน้าเว็บซ่อน badge ไปเลย
+    let adminPendingCount = null;
+    if (p.requestingUsername && isSuperAdmin_(p.requestingUsername)) {
+      adminPendingCount = countAdminPendingRequests_();
+    }
+
+    return {
+      success: true,
+      totalGenerates: totalCommittedBatches,
+      avgReliability: quality.avgReliability,
+      dataVolume: dataVolume,
+      adminPendingCount: adminPendingCount
+    };
+  } catch (e) {
+    return { success: false, error: 'โหลดสถิติ Dashboard ไม่สำเร็จ: ' + e.message };
+  }
+}
+
+// เช็คขนาดข้อมูล (จำนวนแถว) ของชีตหลักที่โตขึ้นเรื่อยๆ เทียบกับเกณฑ์เตือน ROW_WARN_THRESHOLD_ — เอาชีตที่แย่สุด (percent สูงสุด) มาแสดงเป็น badge บน Dashboard
+function computeDashboardDataVolume_() {
+  const sheetsToCheck = [SHEET_NAMES.LOGS, SHEET_NAMES.DATASETS, SHEET_NAMES.QUALITY, SHEET_NAMES.PROMPT_LOGS];
+  let worstPercent = 0, worstSheet = '';
+  sheetsToCheck.forEach(function (name) {
+    try {
+      const sh = getSheet_(name);
+      const rowCount = Math.max(0, sh.getLastRow() - 1); // ลบแถวหัวตาราง 1 แถว
+      const percent = Math.min(100, Math.round((rowCount / ROW_WARN_THRESHOLD_) * 100));
+      if (percent > worstPercent) { worstPercent = percent; worstSheet = name; }
+    } catch (e) {
+      // ชีตนี้อาจยังไม่ถูกสร้าง (เช่นยังไม่เคยรัน setupSheet()) ข้ามไปเฉยๆ ไม่ควรทำให้สถิติทั้งก้อนพัง
+    }
+  });
+  const level = worstPercent >= 100 ? 'critical' : (worstPercent >= 70 ? 'warning' : 'normal');
+  return { percent: worstPercent, level: level, worstSheet: worstSheet };
+}
+
+// นับคำขอค้างที่ Super_Admin ต้องจัดการ: คำขอลบบัญชี (delete_requested_at มีค่า) + คำขอสมัคร Super_Admin ที่รออนุมัติ (approval_status = 'pending')
+function countAdminPendingRequests_() {
+  const sh = getSheet_(SHEET_NAMES.USERS);
+  const data = sh.getDataRange().getValues();
+  const header = data[0];
+  const deleteCol = header.indexOf('delete_requested_at');
+  const approvalCol = header.indexOf('approval_status');
+  let count = 0;
+  for (let i = 1; i < data.length; i++) {
+    const hasDeleteRequest = deleteCol !== -1 && !!data[i][deleteCol];
+    const isPendingApproval = approvalCol !== -1 && data[i][approvalCol] === 'pending';
+    if (hasDeleteRequest || isPendingApproval) count++;
+  }
+  return count;
 }
 
 // รายการสรุปย่อของทุกรอบ Commit (ไม่ส่งข้อมูลแถวจริงมาด้วย เพื่อให้โหลดหน้ารายการเร็ว) ให้เลือกก่อนค่อยดึงรายละเอียดเต็ม
