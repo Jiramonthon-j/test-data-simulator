@@ -1542,6 +1542,9 @@ function handleRequest_(e) {
       case 'getDashboardStats':
         result = handleGetDashboardStats_(payload);
         break;
+      case 'verifyCurrentPassword':
+        result = handleVerifyCurrentPassword_(payload);
+        break;
       case 'getSavedImage':
         result = handleGetSavedImage_(payload);
         break;
@@ -2176,6 +2179,28 @@ function handleResetPassword_(p) {
 }
 
 // เปลี่ยนรหัสผ่านของตัวเองระหว่าง login อยู่ (ต่างจาก handleResetPassword_ ตรงที่ต้องยืนยันรหัสผ่านเดิมก่อนเสมอ ไม่ใช่แค่ยืนยันตัวตนผ่านชื่อผู้ใช้งานอย่างเดียวเหมือนหน้าลืมรหัสผ่าน)
+// (fix) หน้าเว็บเรียก action นี้อยู่แล้วตั้งแต่แรกตอนพิมพ์รหัสผ่านในช่อง "ยืนยัน Commit ลงระบบ" ก่อนปลดล็อกปุ่ม "บันทึกลงฐานข้อมูล" (validateDbUnlockPassword ใน Final.html)
+// แต่ backend ไม่เคยมี case นี้เลย (บั๊กเดิม — โดน default case จับ ตอบ error เงียบๆ ปุ่ม insert DB เลยล็อกค้างตลอด ไม่ว่าจะพิมพ์รหัสผ่านถูกแค่ไหนก็ปลดล็อกไม่ได้เลยสักครั้ง)
+// เช็คแบบเบา ไม่ log กิจกรรมทุกครั้ง เพราะหน้าเว็บยิงมาถี่ๆ ทุกครั้งที่พิมพ์ (debounce ไว้แล้วแต่ยังถี่กว่า login ปกติมาก) — การป้องกันจริงจังยังอยู่ที่ handleCommit_ (ต้องมี session token ที่ valid เสมอ) เหมือนเดิม
+function handleVerifyCurrentPassword_(p) {
+  const session = validateSessionToken_(p.token);
+  if (!session || !p.password) return { success: true, valid: false };
+
+  const sh = getSheet_(SHEET_NAMES.USERS);
+  const data = sh.getDataRange().getValues();
+  const header = data[0];
+  const idx = { username: header.indexOf('username'), salt: header.indexOf('salt'), hash: header.indexOf('password_hash') };
+  const normUsername = normalizeUsername_(session.username);
+
+  for (let i = 1; i < data.length; i++) {
+    if (normalizeUsername_(data[i][idx.username]) === normUsername) {
+      const computed = hashPassword_(p.password, data[i][idx.salt]);
+      return { success: true, valid: computed === data[i][idx.hash] };
+    }
+  }
+  return { success: true, valid: false };
+}
+
 function handleChangeOwnPassword_(p) {
   if (!p.username || !p.currentPassword || !p.newPassword) {
     return { success: false, error: 'ข้อมูลสำหรับเปลี่ยนรหัสผ่านไม่ครบถ้วน' };

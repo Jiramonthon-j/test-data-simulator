@@ -1355,6 +1355,8 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- (v154) แถบเลื่อนแนวนอนของเราเอง เหมือนกับที่ใช้ในตาราง "รายละเอียดชุดข้อมูล" (ประวัติ Commit) — ไม่พึ่ง native scrollbar ที่ไม่ชัวร์ทุกเบราว์เซอร์ -->
+                    <div class="dh-detail-hbar-track" id="dataTableHbarTrack"><div class="dh-detail-hbar-thumb" id="dataTableHbarThumb"></div></div>
 
                     <!-- Pagination Container -->
                     <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-300">
@@ -1720,6 +1722,10 @@
             enableDragScroll_(document.getElementById(id));
         });
 
+        // (v154) แถบเลื่อนแนวนอนของเราเองสำหรับตาราง "ตรวจสอบข้อมูล" (#dataTableScrollWrap) — element นี้ไม่ถูกสร้างใหม่ ผูกครั้งเดียวตอนโหลดหน้าเว็บพอ
+        // แต่เนื้อหาข้างใน (thead/tbody) ถูกแทนที่ทุกครั้งที่ renderTable() ทำงาน จึงเก็บ syncThumb ที่ return กลับมาไว้เรียกซ้ำใน renderTable() เอง (ดูฟังก์ชันนั้น)
+        const syncDataTableHbar_ = initHScrollbar_('dataTableScrollWrap', 'dataTableHbarTrack', 'dataTableHbarThumb');
+
         // ==========================================
         // (v98) Custom Select — เลเยอร์แสดงผลใหม่คู่กับ <select> ตัวจริงที่ถูกซ่อนไว้ด้วย CSS (.custom-select-native) ใช้แก้ปัญหา dropdown เปิดแล้วเป็นสไตล์ native ของเบราว์เซอร์/OS (สไตล์ CSS ตอน list เปิดไม่ได้จริงๆ เป็นข้อจำกัดแพลตฟอร์ม)
         // <select> ตัวจริงยังทำหน้าที่เป็น "แหล่งข้อมูลจริง" เหมือนเดิมทุกจุด (โค้ด JS เดิมทั้งหมดที่อ่าน/เขียน .value, .innerHTML, .selectedIndex, onchange ไม่ต้องแก้ไขอะไรเลย) — ฟังก์ชันนี้แค่สร้างปุ่ม/เมนูที่มองเห็นให้ตรงกับตัวจริงเสมอ
@@ -1938,22 +1944,32 @@
                 showCustomAlert('ยังไม่ได้ตั้งค่าการเชื่อมต่อ Backend<br><br>กรุณาแก้ไขตัวแปร <b>BACKEND_URL</b> ในไฟล์นี้ให้เป็น URL ของ Google Apps Script Web App ที่ deploy แล้ว (ดูขั้นตอนใน DEPLOY_GUIDE.md)');
                 throw new Error('BACKEND_URL ยังไม่ได้ตั้งค่า');
             }
-            let res;
-            try {
-                res = await fetch(BACKEND_URL, {
-                    method: 'POST',
-                    // ใช้ text/plain เพื่อเลี่ยง CORS preflight request ซึ่ง Apps Script Web App ไม่รองรับ
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(Object.assign({ action: action }, payload))
-                });
-            } catch (networkErr) {
-                throw new Error('เชื่อมต่อ Backend ไม่ได้ (เครือข่าย/URL ผิด): ' + networkErr.message);
-            }
-            let json;
-            try {
-                json = await res.json();
-            } catch (parseErr) {
-                throw new Error('Backend ตอบกลับมาในรูปแบบที่อ่านไม่ได้ (ตรวจสอบว่า deploy เป็น Web App ที่ Access = Anyone แล้ว)');
+            // (v155) เดิมถ้า response อ่านเป็น JSON ไม่ได้ (เช่น Google Apps Script ตอบ error page แบบ HTML ชั่วคราวตอนเซิร์ฟเวอร์สะดุด) จะพังทันทีโดยไม่ลองซ้ำเลย
+            // เพิ่ม retry อัตโนมัติสูงสุด 2 ครั้งก่อนพังจริง เผื่อเป็นปัญหาชั่วคราวฝั่ง Google เอง (คล้ายปัญหา 503 ของ Gemini ที่เจอมาก่อนหน้านี้) — ถ้าลองซ้ำแล้วยังไม่ได้จริงๆ ค่อยฟ้อง error เดิม
+            const maxAttempts = 2;
+            let json = null;
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                let res;
+                try {
+                    res = await fetch(BACKEND_URL, {
+                        method: 'POST',
+                        // ใช้ text/plain เพื่อเลี่ยง CORS preflight request ซึ่ง Apps Script Web App ไม่รองรับ
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(Object.assign({ action: action }, payload))
+                    });
+                } catch (networkErr) {
+                    throw new Error('เชื่อมต่อ Backend ไม่ได้ (เครือข่าย/URL ผิด): ' + networkErr.message);
+                }
+                try {
+                    json = await res.json();
+                    break; // parse สำเร็จ ออกจาก loop เลย ไม่ต้องลองซ้ำ
+                } catch (parseErr) {
+                    if (attempt < maxAttempts) {
+                        await new Promise(function (resolve) { setTimeout(resolve, 1500); });
+                        continue;
+                    }
+                    throw new Error('Backend ตอบกลับมาในรูปแบบที่อ่านไม่ได้ (ตรวจสอบว่า deploy เป็น Web App ที่ Access = Anyone แล้ว)');
+                }
             }
             if (!json.success) {
                 const err = new Error(json.error || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุจาก Backend');
@@ -3291,6 +3307,7 @@
 
                 // ซ่อนแถบฟิลเตอร์ & Bulk Edit หากไม่มีชุดข้อมูล
                 document.getElementById('batchEditContainer').classList.add('hidden');
+                syncDataTableHbar_();
                 return;
             }
 
@@ -3377,6 +3394,7 @@
 
             renderPaginationControls(dataToDisplay.length);
             displaySqlPage();
+            syncDataTableHbar_();
         }
 
         // ==========================================
@@ -4553,11 +4571,13 @@
             initDhDetailHScrollbar_();
         }
 
-        function initDhDetailHScrollbar_() {
-            const wrap = document.getElementById('dhDetailTableScroll');
-            const track = document.getElementById('dhDetailHbarTrack');
-            const thumb = document.getElementById('dhDetailHbarThumb');
-            if (!wrap || !track || !thumb) return;
+        // (v154) แยกออกมาเป็นฟังก์ชันกลาง ใช้ซ้ำได้กับตารางไหนก็ได้ที่ต้องการแถบเลื่อนแนวนอนของเราเอง (ไม่พึ่ง native ::-webkit-scrollbar)
+        // รับ id ของ wrap/track/thumb เข้ามา แล้วคืนฟังก์ชัน syncThumb กลับไป ให้ผู้เรียกเก็บไว้เรียกซ้ำเองได้ทุกครั้งที่เนื้อหาในตารางเปลี่ยน (เช่น เปลี่ยนหน้า/กรองข้อมูล/คอลัมน์เปลี่ยน)
+        function initHScrollbar_(wrapId, trackId, thumbId) {
+            const wrap = document.getElementById(wrapId);
+            const track = document.getElementById(trackId);
+            const thumb = document.getElementById(thumbId);
+            if (!wrap || !track || !thumb) return function () {};
             function syncThumb() {
                 const overflowAmount = wrap.scrollWidth - wrap.clientWidth;
                 if (overflowAmount <= 1) { track.classList.remove('show'); return; }
@@ -4595,6 +4615,11 @@
                 thumb.style.left = newLeft + 'px';
                 wrap.scrollLeft = (newLeft / (track.clientWidth - thumbW)) * (wrap.scrollWidth - wrap.clientWidth);
             });
+            return syncThumb;
+        }
+
+        function initDhDetailHScrollbar_() {
+            initHScrollbar_('dhDetailTableScroll', 'dhDetailHbarTrack', 'dhDetailHbarThumb');
         }
 
         function goToDhDetailPage(n) {
