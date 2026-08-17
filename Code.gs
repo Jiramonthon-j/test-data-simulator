@@ -3084,6 +3084,13 @@ function callGemini_(promptText, imageBase64) {
         Utilities.sleep(Math.min(Math.ceil(waitSec) + 2, 65) * 1000);
         continue;
       }
+    } else if (code === 503 || code === 500 || code === 502 || code === 504) {
+      // เซิร์ฟเวอร์ Gemini โหลดสูงชั่วคราว (ฝั่ง Google เอง) — ไม่ใช่โควตา/token ของเราหมด จึงไม่ต้องบันทึก Cooldown
+      // ปกติหายเองภายในไม่กี่วินาที จึงลองซ้ำได้เลยโดยรอสั้นๆ แบบ exponential backoff (2 วิ, 4 วิ)
+      if (attempt < maxAttempts) {
+        Utilities.sleep(2000 * attempt);
+        continue;
+      }
     } else if (code === 200) {
       clearGeminiCooldown_(); // เรียกสำเร็จจริง แปลว่าโควตาว่างแล้วจริงๆ ไม่ต้องให้ผู้ใช้รอตาม Cooldown เดิมอีกต่อไป
     }
@@ -3092,7 +3099,9 @@ function callGemini_(promptText, imageBase64) {
 
   if (code !== 200) {
     const msg = body && body.error && body.error.message ? body.error.message : bodyText;
-    const extra = code === 429 ? ' — ลองใหม่อัตโนมัติแล้วแต่โควตา Gemini free tier ยังไม่ว่าง กรุณารอสักครู่แล้วกดสร้างข้อมูลอีกครั้ง' : '';
+    const extra = code === 429
+      ? ' — ลองใหม่อัตโนมัติแล้วแต่โควตา Gemini free tier ยังไม่ว่าง กรุณารอสักครู่แล้วกดสร้างข้อมูลอีกครั้ง'
+      : ((code === 503 || code === 500 || code === 502 || code === 504) ? ' — ลองใหม่อัตโนมัติแล้วแต่เซิร์ฟเวอร์ Gemini ยังคงมีผู้ใช้งานหนาแน่นอยู่ กรุณาลองใหม่อีกครั้งในอีกสักครู่' : '');
     throw new Error('Gemini API error (HTTP ' + code + '): ' + msg + extra);
   }
 
