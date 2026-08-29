@@ -2779,10 +2779,28 @@ function handleGenerate_(p) {
     return { success: false, error: 'จำกัดไม่เกิน ' + MAX_ROWS_PER_GENERATE + ' แถวต่อคำขอ (ป้องกันคำขอที่มีโอกาสสูงจะถูก AI ตัดคำตอบก่อนครบ เนื่องจากข้อจำกัดความยาวคำตอบสูงสุดของโมเดล)' };
   }
 
+  // (fix — บั๊กใหญ่) ฝั่งหน้าเว็บส่ง field ชื่อ "structureScript" มาตลอด (ดู Final.html/index.html ปุ่ม "สร้างข้อมูลทดสอบ" และ "บันทึก Prompt")
+  // แต่โค้ดฝั่งนี้ทุกจุด (buildSmartPrompt_, parseDdlColumns_, reconcileColumns_ ผ่าน schemaConfig, log ต่างๆ) อ่านจาก p.ddlScript ซึ่งไม่เคยถูกส่งมาเลยสักครั้ง
+  // ผลคือ DDL Script ที่ผู้ใช้แปะไว้ในฟอร์ม "ไม่เคยไปถึง AI หรือโค้ดตรวจสอบเลย" ทั้งๆ ที่ผู้ใช้กรอกไว้ถูกต้องทุกครั้ง — เป็นสาเหตุจริงที่ทำให้ AI สร้างคอลัมน์เอาเองมาตลอด ไม่เกี่ยวกับการ Deploy เลย
+  // แก้โดย normalize ตรงนี้จุดเดียว ให้ p.ddlScript รับค่าจาก structureScript ก่อน (คงชื่อ ddlScript ไว้เป็น fallback เผื่อมี caller เก่าที่ยังส่งชื่อนี้)
+  p.ddlScript = String(p.structureScript || p.ddlScript || '').trim();
+
   // ถ้าผู้ใช้วาง DDL Script มาเอง ถือว่า DDL คือแหล่งความจริงของคอลัมน์ (ยืดหยุ่นเต็มที่ตามที่ผู้ใช้ระบุ)
   // จะไม่ไปตัด/จำกัดคอลัมน์ตาม ColumnSchemaConfig ทับซ้อนกันโดยเด็ดขาด
   // การจำกัดคอลัมน์ตาม ColumnSchemaConfig จะมีผลเฉพาะกรณีที่ "ไม่ได้แนบ DDL" และมีแถว config ที่ตรงกับ data_type/table เท่านั้น (เป็นออปชันที่ต้องตั้งค่าเองล่วงหน้า ไม่ใช่ค่าเริ่มต้นของระบบ)
-  const schemaConfig = p.ddlScript ? null : getColumnSchemaFor_(p.dataType, p.tableName);
+  // (fix) เดิมกรณีมี DDL ตั้ง schemaConfig เป็น null เฉยๆ แปลว่า "ไม่มีการบังคับคอลัมน์ใดๆ ทางโค้ดเลย" ต้องพึ่งพา AI อ่าน DDL จาก prompt แล้วสร้างตามเองล้วนๆ 100%
+  // เจอจริงว่าบางครั้ง AI ไม่ยึด DDL ที่ให้ไว้ (สร้างคอลัมน์ของตัวเองขึ้นมาแทนทั้งหมด โดยเฉพาะตอนเปิดใช้ Reference Column Lock ร่วมด้วย ซึ่งมีข้อความ prompt ส่วนอื่นที่ยาว/เน้นหนักกว่าอาจไปกลบคำสั่ง DDL ได้)
+  // แก้โดย parse รายชื่อคอลัมน์จาก DDL ด้วยโค้ดเอง (parseDdlColumns_) แล้วใช้บังคับผ่าน reconcileColumns_ เหมือนกับที่ ColumnSchemaConfig ทำอยู่แล้ว — คอลัมน์ที่ AI สร้างเกินมาแบบไม่มีใน DDL จะถูกตัดทิ้งเสมอ ไม่ปล่อยให้หลุดออกไปให้ผู้ใช้เห็นเป็นโครงสร้างที่ AI สร้างขึ้นเองอีกต่อไป
+  // parse ไม่ได้ (DDL รูปแบบแปลกเกินคาด) จะคืน [] แล้ว fallback กลับเป็น null (ไม่บังคับอะไร) เหมือนพฤติกรรมเดิม กันไม่ให้ parse ผิดพลาดจนไปตัดคอลัมน์ที่ถูกต้องทิ้งโดยไม่ตั้งใจ
+  let schemaConfig = null;
+  if (p.ddlScript) {
+    const ddlColumns = parseDdlColumns_(p.ddlScript);
+    if (ddlColumns.length) {
+      schemaConfig = { allowedColumns: ddlColumns, requiredColumns: ddlColumns };
+    }
+  } else {
+    schemaConfig = getColumnSchemaFor_(p.dataType, p.tableName);
+  }
   const allowNull = (p.allowNull === true || p.allowNull === 'true');
   const formInputs = { rowsRequested: rowsRequested, allowNull: allowNull };
 
@@ -2809,6 +2827,11 @@ function handleGenerate_(p) {
   // 1) Reconcile คอลัมน์ตาม schema ที่ "หลังบ้าน" กำหนดไว้สำหรับ data_type/table นี้
   const reconciled = reconcileColumns_(rows, schemaConfig);
   rows = reconciled.rows;
+
+  // 1.5) (fix) บังคับทับค่าคอลัมน์ที่ล็อกไว้ด้วยข้อมูลอ้างอิงจริงเสมอด้วยโค้ด แทนที่จะหวังพึ่งแค่คำสั่งที่บอกผ่าน prompt ด้านบนอย่างเดียว (ดู buildSmartPrompt_)
+  // เดิมปล่อยให้ AI เลือกใช้ค่าเองตามคำสั่งในข้อความล้วนๆ ไม่มีการเช็ค/บังคับซ้ำอีกที ทำให้บางครั้งค่าที่ได้ไม่ตรงกับข้อมูลจริง 100% (เช่น สะกดเพี้ยนเล็กน้อย หรือจับคู่ค่าในแถวเดียวกันผิดคน)
+  // แก้ให้การันตีว่าคอลัมน์ที่ล็อกไว้ตรงกับข้อมูลจริงเป๊ะทุกแถว โดยไม่สนใจว่า AI จะสร้างค่าอะไรมาให้ในคอลัมน์เหล่านี้ก่อนหน้านี้เลย
+  rows = applyReferenceColumnLock_(rows, p.referenceColumns, p.referenceRows);
 
   // 2) ตรวจโครงสร้างพื้นฐาน (จำนวนแถว, ค่าว่างที่ไม่อนุญาต)
   const structuralErrors = validateStructure_(rows, formInputs);
@@ -2906,7 +2929,11 @@ function buildSmartPrompt_(p, schemaConfig, rowsRequested, allowNull) {
   parts.push('ต้องการข้อมูลประเภท: "' + p.dataType + '" สำหรับตาราง "' + p.tableName + '" จำนวน ' + rowsRequested + ' แถว.');
 
   if (p.ddlScript) {
-    parts.push('โครงสร้างตารางอ้างอิง (DDL Script) ต้องยึดตามนี้เป็นหลัก:\n' + p.ddlScript);
+    // (fix) เดิมข้อความนี้สั้นและอยู่ใกล้ด้านบนของ prompt เกินไป พอมีเนื้อหาส่วนอื่น (เช่น ข้อมูลอ้างอิงจาก Reference Column Lock) แทรกตามมายาวๆ ด้านล่าง
+    // พบว่า AI บางครั้งไม่ยึด DDL นี้เลย สร้างคอลัมน์ของตัวเองขึ้นมาแทนทั้งหมด — เขียนคำสั่งให้หนักแน่น/ชัดเจนกว่าเดิมมาก และมีการย้ำซ้ำอีกครั้งท้าย prompt (ดูด้านล่าง ใกล้คำสั่งรูปแบบ JSON) เพื่อกันหลุด
+    // (ยังมี reconcileColumns_ ทางฝั่งโค้ดคอยตัดคอลัมน์เกินทิ้งอีกชั้นหลัง AI ตอบกลับมาด้วย เผื่อ AI ยังไม่ทำตามอยู่ดี ไม่ต้องพึ่ง prompt ฝั่งเดียว)
+    parts.push('โครงสร้างตารางที่ต้องสร้างคือ DDL Script นี้เท่านั้น ห้ามเบี่ยงเบน:\n' + p.ddlScript +
+      '\nกฎเคร่งครัด: ทุกแถวที่สร้างต้องมีคอลัมน์ตรงกับ DDL นี้เป๊ะทุกตัวอักษร ชื่อคอลัมน์ต้องตรงตามที่ระบุใน DDL เท่านั้น ห้ามเพิ่มคอลัมน์ใหม่ที่ไม่มีใน DDL ห้ามตัดคอลัมน์ที่มีใน DDL ทิ้ง และห้ามเปลี่ยน/แปล/ย่อ/ขยายชื่อคอลัมน์ใดๆ ทั้งสิ้น แม้จะดูเข้ากับบริบทของประเภทข้อมูลมากกว่าก็ตาม');
   }
 
   // สำคัญมาก: ถ้ามีรูปภาพ Schema/ER Diagram แนบมาด้วย (ส่งเป็น inline_data แยกต่างหากใน callGemini_)
@@ -2956,6 +2983,10 @@ function buildSmartPrompt_(p, schemaConfig, rowsRequested, allowNull) {
   }
 
   parts.push('ข้อมูลต้องสมจริง สอดคล้องกันเชิงตรรกะภายในแต่ละแถว และเหมาะสมกับบริบทธุรกิจของประเภทข้อมูลที่ระบุ');
+  if (p.ddlScript) {
+    // (fix) ย้ำ DDL อีกครั้งใกล้คำสั่งสุดท้ายก่อนตอบ JSON (จุดที่ AI ให้น้ำหนักความสำคัญสูงสุดเพราะเป็นคำสั่งล่าสุดก่อนลงมือจริง) กันไม่ให้ถูกกลบด้วยเนื้อหาส่วนอื่นที่แทรกอยู่ตรงกลาง prompt เช่น ข้อมูลอ้างอิงจาก Reference Column Lock
+    parts.push('ย้ำอีกครั้งก่อนตอบ: ชื่อ key ของทุก object ใน JSON ต้องตรงกับชื่อคอลัมน์ใน DDL Script ที่ให้ไว้ด้านบนเป๊ะทุกตัวอักษร ห้ามมี key อื่นนอกเหนือจากที่ระบุใน DDL โดยเด็ดขาด');
+  }
   parts.push('ตอบกลับเป็น JSON ล้วนเท่านั้น ห้ามมีข้อความอื่นใดนอก JSON และห้ามใช้ markdown code block');
   parts.push('รูปแบบ JSON ต้องเป็น: {"rows": [ {...}, {...}, ... ]} โดยจำนวน object ใน rows ต้องเท่ากับ ' + rowsRequested + ' พอดี');
   parts.push('สำคัญมาก: ให้ตอบ JSON แบบ compact (บีบอัด) ไม่ต้องเว้นบรรทัดหรือเคาะ indent ระหว่าง key/value เพื่อประหยัดพื้นที่คำตอบ และต้องปิด JSON ให้ครบสมบูรณ์เสมอ ห้ามตอบข้อมูลค้างครึ่งกลาง');
@@ -3190,6 +3221,13 @@ function callGeminiValidate_(rows, p) {
   parts.push('นอกจากนี้ให้ประเมินเป็นคะแนนเปอร์เซ็นต์ 2 ค่าเพิ่มเติม (0-100 จำนวนเต็ม):');
   parts.push('- conditionMatchPercent: สัดส่วนของเงื่อนไขทั้งหมดที่ระบุไว้ (ชนิดข้อมูล/DDL, ค่าที่อนุญาต, ค่าว่าง, ช่วงเวลา, สูตรคำนวณ ฯลฯ) ที่ข้อมูลตัวอย่างนี้ทำได้ตรงจริง ให้คิดเป็นสัดส่วนแถว/เงื่อนไขที่ผ่านจริงเทียบกับทั้งหมด ไม่ใช่ให้เต็ม 100 ทุกครั้ง');
   parts.push('- reliabilityPercent: ความน่าเชื่อถือของข้อมูล พิจารณาจากความสมจริง ความสอดคล้องเชิงตรรกะภายในแต่ละแถว ความหลากหลายไม่ซ้ำซาก รูปแบบข้อมูลถูกต้อง (อีเมล/วันที่/ตัวเลข) และไม่มี id ซ้ำ');
+  // (fix) เดิมไม่เคยบอก AI เลยว่าคอลัมน์ไหนถูกล็อกด้วย "อ้างอิงข้อมูลจากชุดที่เคย Commit" (Reference Column Lock) ทำให้กฎ "ไม่มี id ซ้ำ" ด้านบนไปหักคะแนนค่าที่ตั้งใจให้ซ้ำกับข้อมูลเดิม/ซ้ำกันเองระหว่างแถวอย่างไม่เป็นธรรม
+  // ผลคือทุกครั้งที่เปิดใช้ Reference Lock เจตนาให้ค่าซ้ำกับของเดิม (เช่น EMPLOYEE_ID ต้องใช้ค่าเดิมซ้ำได้ตามจริง) reliabilityPercent มักตกต่ำกว่าเกณฑ์ 90% ทุกรอบ ทั้งที่ข้อมูลถูกต้องตามที่ตั้งใจ
+  // แก้โดยแจ้ง AI ชัดเจนว่าคอลัมน์เหล่านี้ห้ามหักคะแนนจากการซ้ำ เพราะเป็นความตั้งใจของฟีเจอร์ ไม่ใช่ข้อบกพร่อง
+  if (p.referenceColumns && p.referenceColumns.length) {
+    parts.push('ข้อยกเว้นสำคัญสำหรับ reliabilityPercent: คอลัมน์ต่อไปนี้ [' + p.referenceColumns.join(', ') + '] ถูกล็อกให้ใช้ค่าจากชุดข้อมูลจริงที่เคย Commit ไปก่อนหน้าโดยตั้งใจ (ฟีเจอร์ "อ้างอิงข้อมูลจากชุดที่เคย Commit") ' +
+      'การที่ค่าในคอลัมน์เหล่านี้ซ้ำกับข้อมูลเดิม หรือซ้ำกันเองระหว่างหลายแถวในชุดที่สร้างใหม่นี้ ถือเป็นพฤติกรรมที่ถูกต้องตามเจตนาการออกแบบ ไม่ใช่ข้อบกพร่องด้านความน่าเชื่อถือ ห้ามหักคะแนน reliabilityPercent หรือระบุเป็น issue จากการซ้ำของคอลัมน์เหล่านี้โดยเด็ดขาด (ยังคงตรวจสอบคอลัมน์อื่นที่ไม่ได้อยู่ในรายการนี้ตามเกณฑ์ปกติ)');
+  }
   parts.push('ตอบกลับเป็น JSON ล้วนเท่านั้น รูปแบบ: {"pass": true หรือ false, "issues": ["..."], "conditionMatchPercent": number, "reliabilityPercent": number, "summary": "สรุปผลสั้นๆ เป็นภาษาไทยไม่เกิน 2 ประโยค"}');
 
   try {
@@ -3403,6 +3441,46 @@ function getColumnSchemaFor_(dataType, tableName) {
   };
 }
 
+// (fix) ดึงรายชื่อคอลัมน์จาก DDL Script ที่ผู้ใช้วางมา (CREATE TABLE ... (คอลัมน์1 TYPE, คอลัมน์2 TYPE, ...)) ด้วยโค้ดเอง
+// ใช้เป็น allowedColumns/requiredColumns ให้ reconcileColumns_ บังคับทับผลลัพธ์จาก AI อีกชั้น แทนที่จะพึ่งพาแค่คำสั่งใน prompt อย่างเดียว (ดู comment ที่จุดเรียกใช้ใน handleGenerate_)
+// แยกคอลัมน์ด้วย comma ที่ "ระดับบนสุด" เท่านั้น (นับความลึกวงเล็บไว้ กัน comma ที่อยู่ใน DECIMAL(10,2)/ENUM('a','b') หลุดมาตัดผิดจุด) แล้วตัดบรรทัดที่เป็น constraint ล้วนๆ ทิ้ง (ไม่ใช่นิยามคอลัมน์จริง)
+// ถ้า parse ไม่ได้เลย (รูปแบบแปลกเกินคาด เช่นไม่มีวงเล็บ) คืน [] เพื่อให้ผู้เรียกใช้ fallback ไปเป็น "ไม่บังคับอะไร" เหมือนเดิม ปลอดภัยกว่าบังคับผิดจนตัดคอลัมน์ที่ถูกต้องทิ้งไปด้วย
+function parseDdlColumns_(ddlScript) {
+  try {
+    const openIdx = String(ddlScript).indexOf('(');
+    const closeIdx = String(ddlScript).lastIndexOf(')');
+    if (openIdx === -1 || closeIdx === -1 || closeIdx <= openIdx) return [];
+    const inner = String(ddlScript).slice(openIdx + 1, closeIdx);
+
+    const parts = [];
+    let depth = 0, current = '';
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i];
+      if (ch === '(') depth++;
+      if (ch === ')') depth--;
+      if (ch === ',' && depth === 0) {
+        parts.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    if (current.trim()) parts.push(current);
+
+    const constraintKeywords = /^(PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|CHECK|CONSTRAINT|INDEX|KEY)\b/i;
+    const columns = [];
+    parts.forEach(function (part) {
+      const trimmed = part.trim();
+      if (!trimmed || constraintKeywords.test(trimmed)) return; // ข้ามบรรทัด constraint ที่ไม่ใช่นิยามคอลัมน์
+      const nameMatch = trimmed.match(/^[`"\[]?([^\s`"\]]+)[`"\]]?/); // ชื่อคอลัมน์คือ token แรก ตัด backtick/double quote/bracket ที่อาจครอบไว้ออก
+      if (nameMatch && nameMatch[1]) columns.push(nameMatch[1]);
+    });
+    return columns;
+  } catch (e) {
+    return [];
+  }
+}
+
 function reconcileColumns_(rows, schemaConfig) {
   if (!schemaConfig || !schemaConfig.allowedColumns || schemaConfig.allowedColumns.length === 0) {
     return {
@@ -3430,6 +3508,52 @@ function reconcileColumns_(rows, schemaConfig) {
   const missingRequired = requiredColumns.filter(function (c) { return keptColumns.indexOf(c) === -1; });
 
   return { rows: newRows, droppedColumns: droppedColumns, missingRequired: missingRequired, keptColumns: keptColumns };
+}
+
+// สับลำดับ array แบบ Fisher-Yates (สุ่มจริง ไม่เอนเอียง) — ใช้แยกไว้เพราะ applyReferenceColumnLock_ ต้องสับซ้ำหลายรอบ
+function shuffleArray_(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// (fix) บังคับทับค่าคอลัมน์ที่ล็อกไว้ (Reference Column Lock) ด้วยข้อมูลจริงจากชุดที่เคย Commit เสมอ ไม่ปล่อยให้ AI ตัดสินใจเองอีกต่อไป
+// สุ่มเลือก "ทั้งแถว" อ้างอิงมา 1 แถวต่อ 1 แถวผลลัพธ์ แล้วทับทุกคอลัมน์ที่ล็อกไว้ด้วยค่าจากแถวอ้างอิงแถวเดียวกันเสมอ
+// (สำคัญ: ต้องทับทั้งชุดจากแถวเดียวกัน ห้ามผสมข้ามแถว เช่น EMPLOYEE_ID กับ EMPLOYEE_NAME ต้องมาจากคนเดียวกันเท่านั้น ตรงตามกติกาเดียวกับที่บอก AI ไว้ใน buildSmartPrompt_)
+// ก่อนทับ จะเคลียร์คีย์เดิมที่ AI อาจตั้งชื่อเพี้ยนเล็กน้อย (ตัวพิมพ์ใหญ่-เล็ก/เว้นวรรคขอบ) แต่หมายถึงคอลัมน์เดียวกันทิ้งก่อน กันได้คอลัมน์ซ้ำซ้อนหน้าตาคล้ายกันโผล่มาสองอันในผลลัพธ์สุดท้าย
+// (fix 2) เดิมสุ่มอิสระทีละแถวด้วย Math.random() ล้วนๆ (สุ่มแบบมีการคืนค่า/with replacement) ทำให้มีโอกาสสูงพอสมควรที่ข้อมูลอ้างอิงบางแถว (เช่น 1 ใน 5 คน) จะไม่ถูกเลือกมาใช้เลยสักครั้ง
+// แม้จำนวนแถวที่ขอสร้างจะมากกว่าจำนวนข้อมูลอ้างอิงมากพอที่ควรจะได้ใช้ครบทุกคนอย่างน้อยคนละ 1 ครั้งก็ตาม (เจอจริง: อ้างอิง 5 คน ขอ 10 แถว แต่บางคนหายไปเฉยๆ เพราะไม่ถูกสุ่มโดนเลย — โอกาสเกิดจริงประมาณ 10% ต่อคนต่อรอบ ไม่ใช่เรื่องแปลก)
+// แก้เป็นสับลำดับข้อมูลอ้างอิงแบบสุ่มก่อน (Fisher-Yates) แล้ววนใช้ทีละคนตามลำดับที่สับไว้ (round-robin) แทน — การันตีว่าถ้าจำนวนแถวที่ขอ >= จำนวนข้อมูลอ้างอิง จะได้ใช้ครบทุกคนอย่างน้อยคนละ 1 ครั้งเสมอก่อนเริ่มวนซ้ำรอบใหม่ (สับลำดับใหม่ทุกรอบที่ครบเซ็ต กันไม่ให้แพทเทิร์นซ้ำเดิมทุกรอบ)
+function applyReferenceColumnLock_(rows, referenceColumns, referenceRows) {
+  if (!rows || !rows.length || !referenceColumns || !referenceColumns.length || !referenceRows || !referenceRows.length) {
+    return rows;
+  }
+  const lockedKeySet = {};
+  referenceColumns.forEach(function (c) { lockedKeySet[String(c).trim().toLowerCase()] = true; });
+
+  let cycle = shuffleArray_(referenceRows);
+  let cursor = 0;
+
+  return rows.map(function (row) {
+    if (cursor >= cycle.length) {
+      cycle = shuffleArray_(referenceRows); // ใช้ครบทุกคนในรอบนี้แล้ว สับลำดับใหม่อีกรอบก่อนเริ่มวนซ้ำ
+      cursor = 0;
+    }
+    const pickedRefRow = cycle[cursor];
+    cursor++;
+    const newRow = {};
+    Object.keys(row).forEach(function (k) {
+      if (lockedKeySet[String(k).trim().toLowerCase()]) return; // ข้ามคีย์เดิม (ของจริง/ของเพี้ยนก็ตาม) ของคอลัมน์ที่จะถูกทับด้วยค่าอ้างอิงด้านล่างอยู่แล้ว
+      newRow[k] = row[k];
+    });
+    referenceColumns.forEach(function (c) {
+      newRow[c] = pickedRefRow[c];
+    });
+    return newRow;
+  });
 }
 
 function validateStructure_(rows, formInputs) {
@@ -3880,6 +4004,8 @@ function logGeneratedPrompt_(p, smartPrompt, allowNull, rowsRequested) {
 
 function handleSavePrompt_(p) {
   if (!p.promptName) return { success: false, error: 'กรุณาระบุชื่อ prompt ที่จะบันทึก' };
+  // (fix) บั๊กเดียวกับ handleGenerate_ — ฝั่งหน้าเว็บส่ง "structureScript" แต่โค้ดนี้เดิมอ่าน p.ddlScript เฉยๆ ทำให้ DDL ที่บันทึกไว้ในชีต SavedPrompts เป็นค่าว่างมาตลอด
+  p.ddlScript = String(p.structureScript || p.ddlScript || '').trim();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = getOrCreateSheet_(ss, SHEET_NAMES.PROMPTS);
   setHeadersIfEmpty_(sh, ['prompt_name', 'created_by', 'created_at', 'data_type', 'table_name', 'dialect', 'rows_requested', 'allow_null', 'ddl_script', 'prompt_addition', 'full_prompt_text', 'image_file_id', 'image_url']);

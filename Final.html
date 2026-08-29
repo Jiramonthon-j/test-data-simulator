@@ -1025,7 +1025,8 @@
         </div>
 
         <!-- (v145) .app-content-scroll: กรอบเลื่อนจริงของทุกแท็บ (แยกจาก Header ด้านบนโดยสิ้นเชิง) ดูคอมเมนต์ที่ .app-main ใน <style> ประกอบ -->
-        <div class="app-content-scroll">
+        <!-- (v156) ทุกแท็บใช้กรอบเลื่อนตัวเดียวกันนี้ร่วมกัน (ไม่ได้แยกคนละกรอบต่อแท็บ) เพิ่ม id ไว้ให้ showAppSection_() รีเซ็ต scrollTop กลับเป็น 0 ทุกครั้งที่สลับแท็บ กันปัญหาตำแหน่งเลื่อนของแท็บก่อนหน้าเลื่อนติดมาโผล่ที่แท็บใหม่ -->
+        <div class="app-content-scroll" id="appContentScroll">
         <div id="sectionDashboard" data-app-section="dashboard" class="space-y-6">
         <div class="dash-hero">
             <div class="dash-hero-canvas-wrap">
@@ -1852,6 +1853,10 @@
             const dashScreenEl = document.getElementById('dashboardScreen');
             if (name === 'dashboard' && dashScreenEl && !dashScreenEl.classList.contains('hidden') && typeof refreshDashboardStats_ === 'function') refreshDashboardStats_();
             try { window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' }); } catch (e) { /* ข้ามได้ */ }
+            // (v156) window.scrollTo ด้านบนไม่มีผลจริง เพราะทั้งหน้าเว็บถูกล็อกไม่ให้เลื่อนอยู่แล้ว (ดู #dashboardScreen ใน <style>) — ตัวที่เลื่อนจริงคือ .app-content-scroll ตัวเดียวที่ทุกแท็บใช้ร่วมกัน
+            // เดิมไม่เคยรีเซ็ต scrollTop ของกรอบนี้เลยตอนสลับแท็บ ตำแหน่งเลื่อนของแท็บก่อนหน้าเลยติดค้างมาโผล่ที่แท็บใหม่ทันที (เลื่อนแท็บนึงแล้วเหมือนแท็บอื่นเลื่อนตามไปด้วย) — รีเซ็ตเป็น 0 ทุกครั้งที่เรียกฟังก์ชันนี้ ทุกแท็บจะเริ่มที่ตำแหน่งบนสุดเสมอไม่ว่าจะเคยเลื่อนค้างไว้ตรงไหนมาก่อน
+            const contentScrollEl = document.getElementById('appContentScroll');
+            if (contentScrollEl) contentScrollEl.scrollTop = 0;
             // (v119) กล่อง #sqlBlock วัดความสูงจริงไม่ได้ตอนที่แท็บนี้ยัง display:none อยู่ (clientHeight เป็น 0) พอเพิ่งสลับมาแท็บนี้ให้วัดใหม่ + แสดงผลใหม่ทันที
             // ใช้ requestAnimationFrame รอให้เบราว์เซอร์ apply class .app-section-visible (display:block/flex) เสร็จก่อน ถึงจะอ่านความสูงที่ถูกต้องได้
             if (name === 'sqlpreview' && typeof displaySqlPage === 'function') {
@@ -3775,7 +3780,7 @@
             };
 
             try {
-                const referenceLockPayload = getReferenceLockPayload();
+                const referenceLockPayload = await getReferenceLockPayload();
                 const result = await callBackend('generate', {
                     username: loggedInUsername,
                     role: loggedInRole,
@@ -4880,7 +4885,10 @@
 
         // คืนค่า { referenceColumns, referenceRows } เพื่อแนบไปกับคำขอ generate — คืนค่าว่างถ้าไม่ได้เปิดใช้ฟีเจอร์นี้ไว้ หรือยังไม่ได้เลือกคอลัมน์ใดเลย
         // referenceRows ตัดมาเฉพาะคอลัมน์ที่เลือกไว้เท่านั้น (ไม่ส่งข้อมูลทั้งแถวที่ไม่จำเป็นไปให้ backend เปล่าๆ)
-        function getReferenceLockPayload() {
+        // (fix) เดิมฟังก์ชันนี้อ่านจาก referenceBatchDetailForGenerate ที่แคชไว้ตอนผู้ใช้เลือกรอบ Commit ครั้งแรกเท่านั้น ไม่เคยดึงข้อมูลใหม่อีกเลย
+        // ถ้าผู้ใช้แก้ไขข้อมูลตรงใน Google Sheet โดยตรงหลังจากเลือกรอบไว้แล้ว (ไม่ได้กดปุ่ม "รีเซ็ต/รีเฟรชรายการ" ใหม่) ตอนกด "สร้างข้อมูลทดสอบ" จะยังส่งค่าเก่าที่แคชไว้ไปให้ AI อยู่ดี ไม่เห็นค่าที่เพิ่งแก้เลย
+        // แก้โดยดึงข้อมูลรอบที่เลือกไว้ใหม่สดๆ จาก backend ทุกครั้งที่กด Generate (ก่อนแนบไปกับ payload) แทนการเชื่อค่าที่แคชไว้เฉยๆ — ปิดช่องโหว่ข้อมูลเก่าค้างได้จริง ไม่ต้องพึ่งให้ผู้ใช้จำไปกดรีเฟรชเอง
+        async function getReferenceLockPayload() {
             const useReference = document.getElementById('inputUseReferenceData').checked;
             if (!useReference || !referenceBatchDetailForGenerate) {
                 return { referenceColumns: [], referenceRows: [] };
@@ -4890,7 +4898,17 @@
             if (!referenceColumns.length) {
                 return { referenceColumns: [], referenceRows: [] };
             }
-            const referenceRows = (referenceBatchDetailForGenerate.rows || []).map(row => {
+            const batchIndex = document.getElementById('selectReferenceBatch').value;
+            let freshDetail = referenceBatchDetailForGenerate; // ค่าสำรอง เผื่อดึงใหม่ไม่สำเร็จ (เช่น เน็ตหลุดชั่วคราว) จะได้ไม่ทำให้ Generate ทั้งรอบล้มเหลวไปด้วย
+            if (batchIndex !== '') {
+                try {
+                    freshDetail = await callBackend('getGeneratedDatasetBatch', { batchIndex: batchIndex });
+                    referenceBatchDetailForGenerate = freshDetail; // sync แคชให้ตรงกับข้อมูลล่าสุดด้วย เผื่อมีการอ่านค่านี้ที่อื่นต่อ
+                } catch (e) {
+                    pushLog('WARN', `ดึงข้อมูลรอบอ้างอิงล่าสุดไม่สำเร็จ (${e.message}) ใช้ข้อมูลที่เคยโหลดไว้ก่อนหน้าแทน — ถ้าเพิ่งแก้ไขข้อมูลใน Google Sheet อาจยังไม่เห็นค่าล่าสุด`);
+                }
+            }
+            const referenceRows = (freshDetail.rows || []).map(row => {
                 const picked = {};
                 referenceColumns.forEach(col => { picked[col] = row[col]; });
                 return picked;
@@ -5558,7 +5576,7 @@
                 // (v74) แนบชื่อคอลัมน์ที่เลือกล็อกไว้ (ถ้าเปิดใช้ Reference Column Lock อยู่ตอนกดบันทึก) เพื่อบันทึกไว้ใน SavedPrompts เป็นข้อมูลอ้างอิง
                 // ไม่ได้บันทึก referenceRows (ข้อมูลจริงจากชุดที่อ้างอิง) เพราะเป็นข้อมูล ณ ขณะนั้นที่อาจถูกลบ/เปลี่ยนไปแล้วตอนโหลด prompt กลับมาใช้ภายหลัง
                 // (v75) แนบ label ของรอบ Commit ที่เลือกไว้ด้วย (label คงที่ตลอดอายุของรอบนั้น ต่างจาก batchIndex ที่เลื่อนตำแหน่งได้) เพื่อให้ตอนโหลด prompt กลับมาใช้ค้นหารอบเดิมแล้ว auto-select ให้อัตโนมัติได้
-                const referenceColumnsForSave = getReferenceLockPayload().referenceColumns;
+                const referenceColumnsForSave = (await getReferenceLockPayload()).referenceColumns;
                 const referenceBatchLabelForSave = (referenceColumnsForSave.length && referenceBatchDetailForGenerate) ? (referenceBatchDetailForGenerate.label || '') : '';
                 await callBackend('savePrompt', {
                     username: loggedInUsername,
