@@ -2833,6 +2833,14 @@ function handleGenerate_(p) {
   // แก้ให้การันตีว่าคอลัมน์ที่ล็อกไว้ตรงกับข้อมูลจริงเป๊ะทุกแถว โดยไม่สนใจว่า AI จะสร้างค่าอะไรมาให้ในคอลัมน์เหล่านี้ก่อนหน้านี้เลย
   rows = applyReferenceColumnLock_(rows, p.referenceColumns, p.referenceRows);
 
+  // 1.6) (fix) จัดลำดับคอลัมน์ผลลัพธ์สุดท้ายให้ตรงกับลำดับที่ผู้ใช้ป้อนไว้เป๊ะ (ลำดับใน DDL Script หรือลำดับใน ColumnSchemaConfig)
+  // เดิมลำดับคอลัมน์ที่ได้ขึ้นกับว่า AI ตอบ JSON key มาลำดับไหนก่อน-หลัง บวกกับ applyReferenceColumnLock_ ที่เอาคอลัมน์ที่ล็อกไปต่อท้ายเสมอ (ดูฟังก์ชันด้านบน)
+  // ทำให้แม้ชื่อคอลัมน์/ค่าจะถูกต้องครบตาม DDL แล้ว แต่ "ลำดับ" คอลัมน์ที่แสดงในตารางกลับไม่ตรงกับลำดับที่ผู้ใช้ป้อนไว้ตั้งแต่แรก (เช่น DDL ระบุ รหัสพนักงาน->ชื่อพนักงาน->เดือน->โบนัส แต่ผลลัพธ์ออกมาเป็น เดือน->โบนัส->รหัสพนักงาน->ชื่อพนักงาน)
+  // แก้โดยจัดเรียงคีย์ของทุกแถวใหม่ตาม schemaConfig.allowedColumns เสมอ (ถ้ามี) — ใช้ได้ทั้งกรณี DDL Script และ ColumnSchemaConfig เพราะทั้งคู่ผ่าน allowedColumns เหมือนกัน
+  if (schemaConfig && schemaConfig.allowedColumns && schemaConfig.allowedColumns.length) {
+    rows = reorderRowsByPreferredColumns_(rows, schemaConfig.allowedColumns);
+  }
+
   // 2) ตรวจโครงสร้างพื้นฐาน (จำนวนแถว, ค่าว่างที่ไม่อนุญาต)
   const structuralErrors = validateStructure_(rows, formInputs);
 
@@ -3508,6 +3516,22 @@ function reconcileColumns_(rows, schemaConfig) {
   const missingRequired = requiredColumns.filter(function (c) { return keptColumns.indexOf(c) === -1; });
 
   return { rows: newRows, droppedColumns: droppedColumns, missingRequired: missingRequired, keptColumns: keptColumns };
+}
+
+// (fix) จัดเรียงคีย์ของแต่ละแถวใหม่ให้ตรงกับลำดับที่ระบุใน preferredOrder เสมอ (เช่น ลำดับคอลัมน์ใน DDL Script หรือ ColumnSchemaConfig)
+// คอลัมน์ใดที่อยู่ในแถวแต่ไม่ได้อยู่ใน preferredOrder (ปกติไม่ควรเกิดถ้า reconcileColumns_ ทำงานถูกต้องแล้ว) จะถูกต่อท้ายตามลำดับเดิม กันไม่ให้ข้อมูลหายไปเฉยๆ
+function reorderRowsByPreferredColumns_(rows, preferredOrder) {
+  if (!rows || !rows.length || !preferredOrder || !preferredOrder.length) return rows;
+  return rows.map(function (row) {
+    const newRow = {};
+    preferredOrder.forEach(function (c) {
+      if (Object.prototype.hasOwnProperty.call(row, c)) newRow[c] = row[c];
+    });
+    Object.keys(row).forEach(function (k) {
+      if (!Object.prototype.hasOwnProperty.call(newRow, k)) newRow[k] = row[k];
+    });
+    return newRow;
+  });
 }
 
 // สับลำดับ array แบบ Fisher-Yates (สุ่มจริง ไม่เอนเอียง) — ใช้แยกไว้เพราะ applyReferenceColumnLock_ ต้องสับซ้ำหลายรอบ
