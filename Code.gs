@@ -4035,6 +4035,10 @@ function handleSavePrompt_(p) {
   setHeadersIfEmpty_(sh, ['prompt_name', 'created_by', 'created_at', 'data_type', 'table_name', 'dialect', 'rows_requested', 'allow_null', 'ddl_script', 'prompt_addition', 'full_prompt_text', 'image_file_id', 'image_url']);
   ensureColumnHeader_(sh, 'image_file_id');
   ensureColumnHeader_(sh, 'image_url');
+  // (fix) หน้าเว็บส่ง referenceColumns/referenceBatchLabel มาให้ตั้งแต่ v74/v75 (คอมเมนต์ในหน้าเว็บ) เพื่อจะกู้คืนการตั้งค่า Reference Column Lock อัตโนมัติตอนโหลด Prompt กลับมาใช้
+  // แต่ backend ไม่เคยมีคอลัมน์รองรับค่านี้เลย ทำให้ฟีเจอร์กู้คืน (ดูฝั่งหน้าเว็บ applySelectedPrompt: อ่าน p.reference_columns/p.reference_batch_label) ไม่เคยทำงานได้จริงสักครั้ง เพิ่มคอลัมน์ให้ครบตอนนี้
+  ensureColumnHeader_(sh, 'reference_columns');
+  ensureColumnHeader_(sh, 'reference_batch_label');
 
   // จัดกลุ่มตามวันแบบเดียวกับ ActivityLogs/QualityScores — แต่ชีตนี้ timestamp (created_at) อยู่คอลัมน์ที่ 3 ไม่ใช่คอลัมน์แรก (คอลัมน์แรกคือ prompt_name)
   const tz = Session.getScriptTimeZone();
@@ -4066,7 +4070,9 @@ function handleSavePrompt_(p) {
     p.promptAddition || '',
     p.fullPromptText || '',
     imageInfo ? imageInfo.fileId : '',
-    imageInfo ? imageInfo.url : ''
+    imageInfo ? imageInfo.url : '',
+    (p.referenceColumns && p.referenceColumns.length) ? p.referenceColumns.join(', ') : '',
+    p.referenceBatchLabel || ''
   ]);
   groupLastRowUnderDateLabel_(sh);
   logActivity_(p.username, p.role, 'SAVE_PROMPT', 'บันทึก prompt ชื่อ "' + p.promptName + '" ไว้ใช้ซ้ำ' + (imageInfo ? ' (พร้อมรูปภาพแนบ)' : ''));
