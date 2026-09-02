@@ -249,8 +249,11 @@
         /* ขยายกล่อง "ตัวอย่างสคริปต์คำสั่ง SQL (Generated Query Preview)" ให้เต็มพื้นที่ที่เหลือของ .app-main เช่นเดียวกับหน้าตรวจสอบข้อมูล — หน้านี้เลื่อนไม่ได้อยู่แล้วเพราะ .app-main คือกรอบที่เลื่อนได้จริงเพียงกรอบเดียว (ดูด้านบน) */
         #sectionSqlPreview.app-section-visible { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
         #sqlResultsCard { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
-        /* ห้ามเลื่อนข้างในกล่องนี้เด็ดขาด (overflow-y:hidden แทน auto) — จำนวนบรรทัดต่อหน้าคำนวณสดจากความสูงกล่องจริงเสมอ (v119: ดู recalcSqlRowsPerPage_() ในสคริปต์) เลยพอดีกับกล่องเป๊ะๆ ทุกขนาดจอ ไม่มีทางเกินจนต้องมีแถบเลื่อนโผล่มา */
-        #sqlBlock { flex: 1 1 auto; min-height: 150px; overflow-y: hidden; }
+        /* (v153) เดิมตั้งใจให้ overflow-y:hidden เพราะคำนวณจำนวนบรรทัดต่อหน้าให้พอดีกับกล่องเป๊ะๆ อยู่แล้ว (v119) แต่สมมติฐานนั้นผิด — #sqlBlock เป็น whitespace-pre-wrap
+           คำสั่ง SQL 1 แถว (1 statement) ที่ยาวเกินความกว้างกล่องจะ wrap เป็นหลายบรรทัดภาพ แต่ตอนคำนวณจำนวนแถวต่อหน้าเดิมนับ 1 แถว = 1 บรรทัดภาพเสมอ
+           ทำให้บางหน้าเนื้อหาจริงสูงเกินกล่องแล้วโดน overflow-y:hidden ตัดท้ายทิ้งไปเงียบๆ (ผู้ใช้เห็น SQL ไม่ครบ) — เปลี่ยนเป็น overflow-y:auto ไว้เป็นตาข่ายนิรภัย
+           ร่วมกับ computeSqlPageBoundaries_() ที่ประมาณจำนวนบรรทัดภาพจริงต่อแถวแล้ว (ดูสคริปต์ด้านล่าง) ทำให้ปกติจะพอดีกล่องไม่ต้องเลื่อน แต่ถ้าประมาณคลาดเคลื่อนก็เลื่อนดูที่เหลือได้แทนที่จะหายไปเฉยๆ */
+        #sqlBlock { flex: 1 1 auto; min-height: 150px; overflow-y: auto; }
         /* 3 แท็บที่แปลงมาจาก Popup เดิม (ประวัติ Commit / รายงานคุณภาพ / จัดการผู้ใช้งาน) ใช้แนวทางเดียวกับ Data Preview/SQL Preview ด้านบนทุกจุด: กล่องนอก (data-app-section) ยืดเต็มพื้นที่ .app-main ที่เหลือ แล้วการ์ดข้างในยืดตาม ส่วนเนื้อหาตรงกลางเลื่อนได้เอง */
         #sectionQualityReport.app-section-visible,
         #sectionCommitHistory.app-section-visible,
@@ -367,7 +370,10 @@
         .dark .auth-visual-badge { background: #262626; color: #f5f5f3; }
         .auth-visual-badge .dot { width: 7px; height: 7px; background: #111; border-radius: 2px; }
         .dark .auth-visual-badge .dot { background: #f5f5f3; }
-        .auth-form-panel { flex: 1; max-width: 500px; overflow-y: hidden; min-height: 0; }
+        /* (v156) เดิม overflow-y:hidden ตอนฟอร์มสั้น (เข้าสู่ระบบ) พอดีกรอบพอดี แต่ขั้นตอนลงทะเบียน 2/2 ที่มีทั้งช่องกรอกครบ + กล่องเงื่อนไขความเป็นส่วนตัว (privacy notice) + checkbox
+           ทำให้เนื้อหาสูงเกินกรอบการ์ด (ซึ่งถูกบีบความสูงด้วย #authScreen { height:100vh; overflow:hidden } และ .auth-shell { max-height:100% } อีกที) ปุ่ม "ยืนยัน"/"ลงทะเบียน" ที่อยู่ล่างสุดเลยถูกตัดพ้นกรอบไปเลย
+           แต่ผู้ใช้เลื่อนดูไม่ได้เพราะตั้ง hidden ไว้ (กดปุ่มไม่ถึง) — เปลี่ยนเป็น auto ให้เลื่อนดูส่วนที่เกินได้แทน */
+        .auth-form-panel { flex: 1; max-width: 500px; overflow-y: auto; min-height: 0; }
         @media (min-width: 860px) { .auth-visual { display: block; } }
 
         /* โหมดกระชับ (Compact) — ใช้เฉพาะตอนอยู่ฟอร์มลงทะเบียน (มีฟิลด์เยอะ) เท่านั้น เพื่อให้พอดีจอเดียวโดยไม่ต้องเลื่อน โดยไม่กระทบขนาดหน้า Login/ลืมรหัสผ่าน/OTP ที่ยังใช้ระยะห่าง/ขนาดตัวอักษรเดิม ตัวคลาส .auth-compact ถูกสลับใส่/เอาออกจาก #authPanelBox ผ่าน JS ใน toggleAuthMode()/switchToForgotPassword() */
@@ -602,17 +608,24 @@
 <body class="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-100">
 
     <div id="customAlert" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4 hidden">
-        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 p-6 max-w-sm w-full space-y-4 text-center transform scale-95 transition-all">
-            <div class="w-12 h-12 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" />
-                </svg>
+        <!-- (v154) เดิม max-w-sm ตายตัว + ไม่มี max-height เลย พอเนื้อหายาว (เช่น สรุปเงื่อนไขก่อนสร้างข้อมูลที่มี "ข้อกำหนดเพิ่มเติม" เป็นข้อความยาวๆ) กล่องจะสูงขึ้นเรื่อยๆ ไม่จำกัด จนหลุดขอบจอบน/ล่าง (ปุ่ม "ตกลง" กดไม่ถึง)
+             แก้ 2 ชั้น: (1) showCustomAlert() จะสลับคลาสความกว้างเป็น max-w-2xl ให้อัตโนมัติเมื่อเนื้อหายาว/มีลิสต์ ให้ข้อความขยายแนวนอนแทนการดันแนวตั้งอย่างเดียว
+             (2) แยกส่วนหัว/เนื้อหาให้เลื่อนได้เอง (overflow-y-auto) ส่วนปุ่ม "ตกลง" ตรึงอยู่ล่างสุดเสมอ ไม่เลื่อนหายไปกับเนื้อหา เป็นตาข่ายนิรภัยกรณีเนื้อหายาวมากจนกว้างขึ้นแล้วก็ยังไม่พอ -->
+        <div id="customAlertBox" class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 w-full max-h-[85vh] flex flex-col text-center transform scale-95 transition-all">
+            <div class="p-6 pb-2 space-y-4 overflow-y-auto min-h-0">
+                <div class="w-12 h-12 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z" />
+                    </svg>
+                </div>
+                <div class="space-y-1">
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white" id="customAlertTitle">แจ้งเตือนจากระบบ</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-300 leading-relaxed" id="customAlertMessage">ข้อความแจ้งเตือน</p>
+                </div>
             </div>
-            <div class="space-y-1">
-                <h3 class="text-base font-bold text-slate-900 dark:text-white" id="customAlertTitle">แจ้งเตือนจากระบบ</h3>
-                <p class="text-xs text-slate-500 dark:text-slate-300 leading-relaxed" id="customAlertMessage">ข้อความแจ้งเตือน</p>
+            <div class="p-6 pt-2">
+                <button onclick="closeCustomAlert()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-xs transition-all shadow-sm">ตกลง</button>
             </div>
-            <button onclick="closeCustomAlert()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-xs transition-all shadow-sm">ตกลง</button>
         </div>
     </div>
 
@@ -2006,6 +2019,12 @@
 
         function showCustomAlert(message) {
             document.getElementById('customAlertMessage').innerHTML = message;
+            // (v154) เนื้อหายาว/มีรายการลิสต์ (เช่น สรุปเงื่อนไขก่อนสร้างข้อมูลที่มี "ข้อกำหนดเพิ่มเติม" เป็นข้อความยาวๆ) ให้ขยายกล่องออกทางแนวนอน (max-w-2xl)
+            // แทนที่จะปล่อยให้แคบตายตัวแล้วดันความสูงขึ้นเรื่อยๆ จนหลุดขอบจอ ส่วนข้อความสั้นๆ ทั่วไป (คำเตือน/ยืนยันการทำรายการ) ยังคงแคบ (max-w-sm) เหมือนเดิมเพื่อความกระชับ
+            const box = document.getElementById('customAlertBox');
+            const isLongContent = typeof message === 'string' && (message.length > 220 || /<ul|<table|<li/i.test(message));
+            box.classList.remove('max-w-sm', 'max-w-2xl');
+            box.classList.add(isLongContent ? 'max-w-2xl' : 'max-w-sm');
             document.getElementById('customAlert').classList.remove('hidden');
         }
 
@@ -3022,8 +3041,7 @@
             const currentRole = document.getElementById('currentRoleDisplay')?.innerText || 'QA_Tester';
             const reportDate = new Date().toLocaleString('th-TH');
 
-            let printWindow = window.open('', '_blank');
-            printWindow.document.write(`
+            const reportHtml = `
                 <html>
                 <head>
                     <title>System Activity Audit Report</title>
@@ -3042,7 +3060,7 @@
                     <div class="header">
                         <div class="title">รายงานบันทึกกิจกรรมและระบบความปลอดภัยของข้อมูลจำลอง</div>
                         <div class="meta">
-                            <b>เจ้าหน้าที่ผู้ตรวจสอบ:</b> ${currentUser} (${currentRole}) | 
+                            <b>เจ้าหน้าที่ผู้ตรวจสอบ:</b> ${currentUser} (${currentRole}) |
                             <b>วันเวลาที่ออกรายงาน:</b> ${reportDate}
                         </div>
                     </div>
@@ -3069,8 +3087,25 @@
                     <\/script>
                 </body>
                 </html>
-            `);
-            printWindow.document.close();
+            `;
+
+            // (v155) เดิมใช้ window.open('', '_blank') แล้วยัดเนื้อหาด้วย document.write() — วิธีนี้เปราะบางมากบนโดเมนจริง (GitHub Pages/HTTPS):
+            // ถ้าเบราว์เซอร์/ส่วนขยาย (เช่น ตัวบล็อกโฆษณา) บล็อก pop-up แบบเงียบๆ window.open() บางกรณีจะไม่คืนค่า null ตรงๆ แต่ก็ไม่มีหน้าต่างเปิดขึ้นจริง
+            // โค้ดเดิมไม่ได้เช็ค printWindow เลยก่อนเขียนเนื้อหา จึงวิ่งผ่านไปจนถึงบรรทัด pushLog('SUCCESS', ...) โดยไม่มีอะไรเกิดขึ้นจริงบนหน้าจอ (log โกหกผู้ใช้)
+            // เปลี่ยนมาใช้ Blob + Object URL แทน document.write() (Chrome ถือว่า document.write() เป็นของเก่าที่ไม่แนะนำให้ใช้แล้วในหลายสถานการณ์) และเช็ค printWindow ก่อนถือว่าสำเร็จ
+            const reportBlob = new Blob([reportHtml], { type: 'text/html' });
+            const reportBlobUrl = URL.createObjectURL(reportBlob);
+            const printWindow = window.open(reportBlobUrl, '_blank');
+
+            if (!printWindow) {
+                URL.revokeObjectURL(reportBlobUrl);
+                showCustomAlert('เบราว์เซอร์บล็อกหน้าต่างป๊อปอัปสำหรับพิมพ์รายงาน กรุณาอนุญาต Pop-up สำหรับเว็บไซต์นี้ในเบราว์เซอร์ (ไอคอนแจ้งเตือนมักขึ้นที่แถบที่อยู่ URL) แล้วกดพิมพ์รายงานอีกครั้ง');
+                pushLog('ERROR', 'พิมพ์รายงานไม่สำเร็จ: เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป (Pop-up Blocked) — กรุณาอนุญาต Pop-up แล้วลองใหม่');
+                return;
+            }
+
+            // ปล่อยให้หน้าต่างใหม่โหลดเนื้อหาจาก Blob URL เสร็จก่อนค่อยคืนหน่วยความจำ (revoke) กันกรณีโหลดช้า
+            setTimeout(() => URL.revokeObjectURL(reportBlobUrl), 60000);
             pushLog('SUCCESS', 'ดึงชุดข้อมูลบันทึกกิจกรรมและเปิดหน้าต่างพิมพ์รายงานสำเร็จเรียบร้อยแล้ว');
         }
 
@@ -3172,15 +3207,15 @@
             controlsContainer.appendChild(lastBtn);
         }
 
-        function renderSqlPaginationControls(totalRows) {
-            const totalPages = Math.ceil(totalRows / sqlRowsPerPage) || 1;
-            
+        function renderSqlPaginationControls(totalRows, totalPages, startIdx, endIdx) {
+            // (v153) totalPages/startIdx/endIdx ตอนนี้รับมาจาก computeSqlPageBoundaries_() โดยตรงแทนการคำนวณเองจาก sqlRowsPerPage คงที่
+            // เพราะแต่ละหน้าอาจมีจำนวนแถว (statement) ไม่เท่ากัน ขึ้นกับว่าแต่ละแถว wrap กี่บรรทัดภาพ — ยังรับพารามิเตอร์แบบเดิมไว้เผื่อเรียกจากที่อื่นแบบไม่ระบุ (fallback)
+            if (totalPages === undefined) totalPages = Math.ceil(totalRows / sqlRowsPerPage) || 1;
             if (currentSqlPage > totalPages) currentSqlPage = totalPages;
             if (currentSqlPage < 1) currentSqlPage = 1;
+            if (startIdx === undefined) startIdx = totalRows === 0 ? 0 : (currentSqlPage - 1) * sqlRowsPerPage + 1;
+            if (endIdx === undefined) endIdx = Math.min(currentSqlPage * sqlRowsPerPage, totalRows);
 
-            const startIdx = totalRows === 0 ? 0 : (currentSqlPage - 1) * sqlRowsPerPage + 1;
-            const endIdx = Math.min(currentSqlPage * sqlRowsPerPage, totalRows);
-            
             document.getElementById('sqlPaginationInfo').innerText = `กำลังแสดงคำสั่ง SQL แถวที่ ${startIdx} ถึง ${endIdx} จากทั้งหมด ${totalRows} รายการ`;
 
             const controlsContainer = document.getElementById('sqlPaginationControls');
@@ -3251,6 +3286,52 @@
             sqlRowsPerPage = Math.max(5, computedRows); // กันเผื่อค่าต่ำผิดปกติ (เช่น layout ยังไม่นิ่ง) อย่างน้อยแสดง 5 บรรทัดเสมอ
         }
 
+        // (v153) ประมาณจำนวนตัวอักษรที่พอดี 1 บรรทัดภาพของกล่อง #sqlBlock จากความกว้างกล่องจริงหารด้วยความกว้างตัวอักษรของฟอนต์ monospace ที่ใช้แสดงผลจริง
+        // ใช้ canvas.measureText วัดความกว้างจริงของฟอนต์ (กันกรณีขนาดจอ/ซูมเปลี่ยนค่าไม่ตรงกับที่เคยเดาไว้แบบตายตัว)
+        let sqlCharsPerLineCanvas_ = null;
+        function estimateSqlCharsPerLine_() {
+            const sqlBlock = document.getElementById('sqlBlock');
+            if (!sqlBlock || sqlBlock.clientWidth === 0) return 80; // ค่าเผื่อกรณีวัดไม่ได้ (เช่นแท็บยังไม่แสดง)
+            const cs = getComputedStyle(sqlBlock);
+            const paddingLeft = parseFloat(cs.paddingLeft) || 0;
+            const paddingRight = parseFloat(cs.paddingRight) || 0;
+            const availableWidth = sqlBlock.clientWidth - paddingLeft - paddingRight;
+            if (!sqlCharsPerLineCanvas_) sqlCharsPerLineCanvas_ = document.createElement('canvas');
+            const ctx = sqlCharsPerLineCanvas_.getContext('2d');
+            ctx.font = `${cs.fontStyle || 'normal'} ${cs.fontWeight || 'normal'} ${cs.fontSize} ${cs.fontFamily}`;
+            const charWidth = ctx.measureText('0').width || (parseFloat(cs.fontSize) || 12) * 0.62;
+            return Math.max(10, Math.floor(availableWidth / charWidth));
+        }
+
+        // ประมาณจำนวนบรรทัดภาพที่ 1 แถว SQL (อาจยาวกว่าความกว้างกล่อง) จะใช้จริงเมื่อ wrap ตาม whitespace-pre-wrap
+        function estimateSqlVisualLines_(text, charsPerLine) {
+            if (!text) return 1;
+            return Math.max(1, Math.ceil(text.length / charsPerLine));
+        }
+
+        // (v153) จัดกลุ่มแถว SQL เป็นหน้าๆ โดยนับ "บรรทัดภาพจริง" ของแต่ละแถว (รวม wrap) แทนการหารด้วยจำนวนแถวคงที่
+        // แต่ละหน้าจึงมีจำนวน statement ไม่เท่ากันตามความยาวจริง แต่ความสูงรวมของแต่ละหน้าจะไม่เกินความจุกล่อง (sqlRowsPerPage บรรทัด) เหมือนกันทุกหน้า
+        function computeSqlPageBoundaries_() {
+            const charsPerLine = estimateSqlCharsPerLine_();
+            const capacity = Math.max(1, sqlRowsPerPage);
+            const boundaries = [];
+            let idx = 0;
+            const total = totalSqlRowsArray.length;
+            while (idx < total) {
+                const start = idx;
+                let used = 0;
+                while (idx < total) {
+                    const lines = estimateSqlVisualLines_(totalSqlRowsArray[idx], charsPerLine);
+                    if (used > 0 && used + lines > capacity) break; // เกินความจุแล้ว ตัดหน้าตรงนี้ (ยกเว้นหน้ายังว่างอยู่ ต้องยอมใส่อย่างน้อย 1 แถวกันหน้าว่างตายตัว)
+                    used += lines;
+                    idx++;
+                }
+                boundaries.push([start, idx]);
+            }
+            if (boundaries.length === 0) boundaries.push([0, 0]);
+            return boundaries;
+        }
+
         function displaySqlPage() {
             recalcSqlRowsPerPage_(); // (v119) วัดขนาดกล่องจริงใหม่ทุกครั้งที่จะแสดงผล กันกรณีขนาดจอ/กล่องเปลี่ยนไปตั้งแต่ครั้งก่อน
             const sqlBlock = document.getElementById('sqlBlock');
@@ -3260,12 +3341,16 @@
                 return;
             }
 
-            const startIndex = (currentSqlPage - 1) * sqlRowsPerPage;
-            const endIndex = startIndex + sqlRowsPerPage;
+            const boundaries = computeSqlPageBoundaries_(); // (v153) ขอบเขตแต่ละหน้าคำนวณแบบ wrap-aware แล้ว แทนการหาร index ตรงๆ แบบเดิม
+            const totalPages = boundaries.length;
+            if (currentSqlPage > totalPages) currentSqlPage = totalPages;
+            if (currentSqlPage < 1) currentSqlPage = 1;
+
+            const [startIndex, endIndex] = boundaries[currentSqlPage - 1];
             const paginatedSqlRows = totalSqlRowsArray.slice(startIndex, endIndex);
-            
+
             sqlBlock.innerHTML = highlightSQL(paginatedSqlRows.join('\n'));
-            renderSqlPaginationControls(totalSqlRowsArray.length);
+            renderSqlPaginationControls(totalSqlRowsArray.length, totalPages, startIndex + 1, endIndex);
         }
 
         // (v119) ปรับจำนวนบรรทัดต่อหน้าใหม่เวลาผู้ใช้ปรับขนาดหน้าต่างเบราว์เซอร์ (กล่อง #sqlResultsCard ยืด/หดตาม .app-main ที่เหลือ ความสูงกล่อง #sqlBlock จึงเปลี่ยนตามไปด้วย)
@@ -5007,11 +5092,14 @@
                     badgesHtml += `<div class="mt-1"><span class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-300 rounded"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>ขอลบบัญชีเมื่อ ${u.deleteRequestedAt}</span></div>`;
                 }
 
+                // (v157) บัญชีที่ยังรออนุมัติ Super_Admin แก้ไขอีเมล/รหัสผ่านไม่ได้จนกว่าจะอนุมัติ (หรือปฏิเสธ) คำขอนี้ก่อน — ปิดปุ่มไว้ล่วงหน้าให้เห็นชัดเจน (สีเทา กดไม่ได้)
+                // แทนที่จะเอาปุ่มออกไปเลย เพื่อให้ยังเห็นว่าฟีเจอร์นี้มีอยู่แต่ใช้ไม่ได้ตอนนี้ พร้อม title อธิบายเหตุผล (backend ก็ปฏิเสธซ้ำอีกชั้นถ้ามีคนพยายามข้าม UI มา ดู handleAdminResetPassword_/handleAdminSetUserEmail_)
+                const pendingApprovalTitle = 'บัญชีนี้ยังรออนุมัติ Super Admin — ต้องอนุมัติหรือปฏิเสธคำขอก่อน จึงจะแก้ไขได้';
                 let actionsHtml = `
-                        <button onclick="openAdminSetEmailModal('${u.username}', '${(u.email || '').replace(/'/g, "\\'")}')" class="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-100 dark:border-emerald-800 transition-all">
+                        <button onclick="openAdminSetEmailModal('${u.username}', '${(u.email || '').replace(/'/g, "\\'")}')" ${approvalPending ? 'disabled' : ''} title="${approvalPending ? pendingApprovalTitle : ''}" class="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-100 dark:border-emerald-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-50 dark:disabled:hover:bg-emerald-950">
                             ตั้ง/แก้ไขอีเมล
                         </button>
-                        <button onclick="openAdminResetPasswordModal('${u.username}')" class="px-2.5 py-1 text-[11px] font-semibold bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800 transition-all">
+                        <button onclick="openAdminResetPasswordModal('${u.username}')" ${approvalPending ? 'disabled' : ''} title="${approvalPending ? pendingApprovalTitle : ''}" class="px-2.5 py-1 text-[11px] font-semibold bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-50 dark:disabled:hover:bg-blue-950">
                             รีเซ็ตรหัสผ่าน
                         </button>`;
                 if (approvalPending && isPrimaryAdminViewing) {

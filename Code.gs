@@ -2712,11 +2712,16 @@ function handleAdminResetPassword_(p) {
   const sh = getSheet_(SHEET_NAMES.USERS);
   const data = sh.getDataRange().getValues();
   const header = data[0];
-  const idx = { username: header.indexOf('username'), salt: header.indexOf('salt'), hash: header.indexOf('password_hash') };
+  const idx = { username: header.indexOf('username'), salt: header.indexOf('salt'), hash: header.indexOf('password_hash'), approvalStatus: header.indexOf('approval_status') };
   const normTarget = normalizeUsername_(p.targetUsername);
 
   for (let i = 1; i < data.length; i++) {
     if (normalizeUsername_(data[i][idx.username]) === normTarget) {
+      // (v157) บัญชีที่สมัคร Super_Admin แล้วยังรอ Super Admin หลักอนุมัติ (approval_status === 'pending') ห้ามถูกแก้ไขรหัสผ่านผ่านช่องทางนี้
+      // เพราะยังไม่ยืนยันตัวตน/สิทธิ์จริง — ต้องอนุมัติ (หรือปฏิเสธ) คำขอให้เสร็จก่อนเสมอ ถึงจะแก้ไขบัญชีนี้ได้ (ฝั่งหน้าเว็บก็ปิดปุ่มนี้ไว้ล่วงหน้าแล้ว แต่เช็คซ้ำที่นี่กันข้าม UI มาโดยตรง)
+      if (idx.approvalStatus !== -1 && data[i][idx.approvalStatus] === 'pending') {
+        return { success: false, error: 'บัญชีนี้ยังไม่ได้รับการอนุมัติเป็น Super Admin กรุณาอนุมัติหรือปฏิเสธคำขอนี้ก่อน จึงจะรีเซ็ตรหัสผ่านให้ได้' };
+      }
       const newSalt = generateSalt_();
       const newHash = hashPassword_(p.newPassword, newSalt);
       sh.getRange(i + 1, idx.salt + 1).setValue(newSalt);
@@ -2746,10 +2751,15 @@ function handleAdminSetUserEmail_(p) {
   const data = sh.getDataRange().getValues();
   const header = data[0];
   const usernameCol = header.indexOf('username');
+  const approvalStatusCol = header.indexOf('approval_status');
   const normTarget = normalizeUsername_(p.targetUsername);
 
   for (let i = 1; i < data.length; i++) {
     if (normalizeUsername_(data[i][usernameCol]) === normTarget) {
+      // (v157) เหตุผลเดียวกับ handleAdminResetPassword_ — บัญชีที่ยังรออนุมัติ Super_Admin ห้ามแก้ไขอีเมลผ่านช่องทางนี้จนกว่าจะอนุมัติ/ปฏิเสธคำขอเสร็จก่อน
+      if (approvalStatusCol !== -1 && data[i][approvalStatusCol] === 'pending') {
+        return { success: false, error: 'บัญชีนี้ยังไม่ได้รับการอนุมัติเป็น Super Admin กรุณาอนุมัติหรือปฏิเสธคำขอนี้ก่อน จึงจะตั้ง/แก้ไขอีเมลให้ได้' };
+      }
       sh.getRange(i + 1, emailCol).setValue(p.email.trim());
       logActivity_(p.requestingUsername, 'Super_Admin', 'ADMIN_SET_EMAIL', 'ตั้ง/แก้ไขอีเมลให้ผู้ใช้งาน "' + p.targetUsername + '" ผ่านแผงจัดการผู้ใช้งาน');
       return { success: true };
