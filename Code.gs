@@ -51,7 +51,7 @@ const MAX_ROWS_PER_GENERATE = 300;
 
 // ตัวเลขเวอร์ชันไว้เช็คว่า deployment ที่รันอยู่จริงเป็นโค้ดล่าสุดหรือไม่
 // วิธีเช็ค: เปิด <BACKEND_URL>?action=ping ในเบราว์เซอร์ตรงๆ แล้วดูค่า "version" ในผลลัพธ์
-const BACKEND_VERSION = 'v65-pending-super-admin-cannot-act-2026-07-21';
+const BACKEND_VERSION = 'v75-rule-compiler-template-shuffle-cycle-2026-09-10';
 
 // Super_Admin "หลัก" ของระบบ — บัญชีที่ setupSheet() สร้างให้อัตโนมัติตอนติดตั้งครั้งแรก (ดู setupSheet())
 // ใช้เทียบแบบ normalizeUsername_() เสมอ (ไม่สนตัวพิมพ์เล็ก/ใหญ่) เพื่อ (1) กันไม่ให้บัญชีนี้ส่งคำขอลบบัญชีตัวเองได้
@@ -2814,25 +2814,72 @@ function handleGenerate_(p) {
   const allowNull = (p.allowNull === true || p.allowNull === 'true');
   const formInputs = { rowsRequested: rowsRequested, allowNull: allowNull };
 
-  const smartPrompt = buildSmartPrompt_(p, schemaConfig, rowsRequested, allowNull);
+  // (feature) ทางเลือกคู่ขนาน "Rule Compiler (Beta)" — หน้าเว็บส่ง p.useRuleCompiler=true มาถึงจะเข้าทางนี้เท่านั้น
+  // ถ้าไม่ติ๊ก (ค่าเริ่มต้น) จะเข้า else ด้านล่างซึ่งเป็น path เดิมเป๊ะทุกบรรทัด ไม่ถูกแก้ไขเลยแม้แต่ตัวเดียว
+  // เป้าหมาย: เรียก Gemini แค่ 1 ครั้งต่อคำขอ (compileRules_) ไม่ว่าคอลัมน์จะมี ai_context กี่คอลัมน์ก็ตาม
+  // (fix 2026-09-07: เดิมยังต้องเรียกซ้ำอีก 1 ครั้งผ่าน fillAiContextColumns_ ถ้ามีคอลัมน์ ai_context ทำให้รวม
+  // เป็น 2 ครั้ง เท่ากับ/แพงกว่า path เดิม — ตอนนี้ generateRowsFromRules_ เติม ai_context ด้วยแม่แบบที่ Gemini
+  // เขียนมาให้ตั้งแต่ compileRules_ แล้ว ไม่ต้องเรียก Gemini ซ้ำอีกเลย ดูเหตุผลที่ RuleDispatcher.gs)
+  // แทนที่จะให้ Gemini เขียนข้อมูลทุกแถวเอง — ดูรายละเอียด/เหตุผลการออกแบบที่ RuleCompilerPrompt.gs และ RuleDispatcher.gs
+  const useRuleCompiler = (p.useRuleCompiler === true || p.useRuleCompiler === 'true');
 
-  let aiText;
-  try {
-    aiText = callGemini_(smartPrompt, p.schemaImageBase64);
-  } catch (err) {
-    logActivity_(p.username, p.role, 'GENERATE_FAIL', 'เรียก Gemini API ไม่สำเร็จ: ' + err.message);
-    return { success: false, error: 'เรียก AI API ไม่สำเร็จ: ' + err.message };
+  let smartPrompt;
+  let rows;
+
+  if (useRuleCompiler) {
+    let rules;
+    try {
+      rules = compileRules_(p); // เรียก Gemini ครั้งเดียวทั้งหมด (แปลเงื่อนไข -> JSON Rules) นิยามอยู่ใน RuleDispatcher.gs
+      smartPrompt = buildRuleCompilerPrompt_(p, getTodayContextStr_()); // เก็บไว้ log/แสดงผลเหมือน path เดิม (promptUsed)
+    } catch (err) {
+      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'Rule Compiler (Beta) ไม่สำเร็จ: ' + err.message);
+      return { success: false, error: 'Rule Compiler (Beta) ไม่สำเร็จ: ' + err.message };
+    }
+
+    // (fix) เดิม schemaConfig.allowedColumns ถูกล็อกไว้เท่ากับคอลัมน์ที่พิมพ์ใน DDL ตรงๆ เท่านั้น (ตั้งไว้ก่อนเรียก compileRules_
+    // ด้วยซ้ำ — ดูคอมเมนต์บรรทัดบนสุดของฟังก์ชันนี้) ทำให้แม้ compileRules_ จะยอมรับคอลัมน์ที่ Gemini เติมมาจากรูป Schema/ER
+    // Diagram แล้ว (ดู RuleDispatcher.gs ที่ข้ามเช็ค "extra" เมื่อมีรูป) แต่ reconcileColumns_ ด้านล่างซึ่งใช้ allowedColumns
+    // ตัวเดิมนี้อยู่ดี ก็จะตัดคอลัมน์ที่เติมมาจากรูปทิ้งเงียบๆ อยู่ดี — ผลคือฟีเจอร์อ่านรูปดูเหมือนทำงาน (compileRules_ ผ่าน)
+    // แต่ผลลัพธ์สุดท้ายที่ผู้ใช้เห็นกลับไม่มีคอลัมน์จากรูปเลย พิสูจน์แล้วจริงจากการทดสอบ Test 6 (2026-09-08)
+    // แก้โดยขยาย allowedColumns ให้รวมคอลัมน์ที่ Rule Compiler ตอบมาเพิ่มด้วย เฉพาะตอนมีรูปแนบมา (ไม่กระทบ path เดิม/
+    // กรณีไม่มีรูปเลย เพราะเงื่อนไข p.schemaImageBase64 จะเป็นเท็จ) requiredColumns ยังคงเป็นแค่ที่พิมพ์ใน DDL เหมือนเดิม
+    // (คอลัมน์จากรูปถือเป็นส่วนเสริมที่อนุญาตให้มี ไม่ใช่คอลัมน์บังคับที่พลาดไม่ได้เท่ากับที่ผู้ใช้พิมพ์ตรงๆ)
+    if (p.schemaImageBase64 && schemaConfig && schemaConfig.allowedColumns) {
+      const ruleColumnNames = rules.columns.map(function (c) { return c.name; });
+      const mergedAllowed = schemaConfig.allowedColumns.slice();
+      ruleColumnNames.forEach(function (name) {
+        if (mergedAllowed.indexOf(name) === -1) mergedAllowed.push(name);
+      });
+      schemaConfig = { allowedColumns: mergedAllowed, requiredColumns: schemaConfig.requiredColumns };
+    }
+
+    try {
+      rows = generateRowsFromRules_(rules, rowsRequested); // สุ่มด้วยโค้ดล้วนๆ ไม่เรียก Gemini เลย (รวมคอลัมน์ ai_context ด้วย)
+    } catch (err) {
+      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'สุ่มข้อมูลจาก Rules (Beta) ไม่สำเร็จ: ' + err.message);
+      return { success: false, error: 'สุ่มข้อมูลจาก Rules (Beta) ไม่สำเร็จ: ' + err.message };
+    }
+  } else {
+    smartPrompt = buildSmartPrompt_(p, schemaConfig, rowsRequested, allowNull);
+
+    let aiText;
+    try {
+      aiText = callGemini_(smartPrompt, p.schemaImageBase64);
+    } catch (err) {
+      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'เรียก Gemini API ไม่สำเร็จ: ' + err.message);
+      return { success: false, error: 'เรียก AI API ไม่สำเร็จ: ' + err.message };
+    }
+
+    let parsed;
+    try {
+      parsed = extractJsonFromAiText_(aiText);
+    } catch (err) {
+      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'AI ตอบกลับไม่เป็น JSON ที่ใช้ได้: ' + err.message);
+      return { success: false, error: 'ไม่สามารถแปลผลลัพธ์จาก AI เป็นข้อมูลได้: ' + err.message, rawAiText: aiText };
+    }
+
+    rows = parsed.rows || [];
   }
-
-  let parsed;
-  try {
-    parsed = extractJsonFromAiText_(aiText);
-  } catch (err) {
-    logActivity_(p.username, p.role, 'GENERATE_FAIL', 'AI ตอบกลับไม่เป็น JSON ที่ใช้ได้: ' + err.message);
-    return { success: false, error: 'ไม่สามารถแปลผลลัพธ์จาก AI เป็นข้อมูลได้: ' + err.message, rawAiText: aiText };
-  }
-
-  let rows = parsed.rows || [];
 
   // 1) Reconcile คอลัมน์ตาม schema ที่ "หลังบ้าน" กำหนดไว้สำหรับ data_type/table นี้
   const reconciled = reconcileColumns_(rows, schemaConfig);
@@ -2920,8 +2967,8 @@ function handleGenerate_(p) {
     ' | ความน่าเชื่อถือ ' + reliabilityPercent + (reliabilityPercent === 'N/A' ? '' : '%')
   );
 
-  logQualityScore_(p, rows.length, conditionMatchPercent, reliabilityPercent, qualityScore.summary, qualityLevel, passMinimumThreshold);
-  logGeneratedPrompt_(p, smartPrompt, allowNull, rowsRequested);
+  logQualityScore_(p, rows.length, conditionMatchPercent, reliabilityPercent, qualityScore.summary, qualityLevel, passMinimumThreshold, useRuleCompiler);
+  logGeneratedPrompt_(p, smartPrompt, allowNull, rowsRequested, useRuleCompiler);
 
   return {
     success: true,
@@ -3029,6 +3076,46 @@ function extractRetryDelaySeconds_(body) {
     }
   } catch (e) { /* ข้ามได้ ใช้ default แทน */ }
   return null;
+}
+
+// (fix) พยายามตรวจว่า HTTP 429 ที่เจอเป็นการชนโควตา "รายวัน" (RPD) หรือแค่โควตาย่อยรายนาที (RPM)
+// Google แนบ quotaId มาใน error.details เสมอ และตั้งชื่อโควตารายวันด้วยคำว่า "PerDay" เป๊ะทุกครั้ง
+// (เช่น "GenerateRequestsPerDayPerProjectPerModel-FreeTier") ต่างจากเดิมที่โค้ดปฏิบัติกับ 429 ทุกแบบเหมือนกันหมด
+// แล้ว retry สูงสุด 3 ครั้งเสมอ ทั้งที่ถ้าเป็นโควตารายวัน การ retry ภายในไม่กี่สิบวินาทีไม่มีทางสำเร็จเลย
+// (ต้องรอข้ามวันจริงๆ) ทำให้เปลืองโควตาที่เหลืออยู่น้อยนิดไปกับการ retry ที่ไร้ประโยชน์ — พิสูจน์จากการทดสอบจริง
+// ที่ใช้ Rule Compiler แค่ 1-2 รอบก็ชนโควตารายวันแล้ว (2026-09-07)
+// ถ้าตรวจโครงสร้าง error ไม่ได้ (Google เปลี่ยนรูปแบบในอนาคต) ให้ถือว่า "ไม่ใช่โควตารายวัน" ไปก่อนเสมอ (fail-safe
+// เข้าทาง retry แบบเดิมที่พิสูจน์แล้วว่าใช้งานได้จริง ไม่เสี่ยงพังพฤติกรรมเดิมของกรณีอื่น)
+function isDailyQuotaViolation_(body) {
+  try {
+    const details = body && body.error && body.error.details;
+    if (!details) return false;
+    for (let i = 0; i < details.length; i++) {
+      const violations = details[i] && details[i].violations;
+      if (!violations) continue;
+      for (let j = 0; j < violations.length; j++) {
+        const quotaId = String(violations[j].quotaId || '');
+        if (/perday/i.test(quotaId)) return true;
+      }
+    }
+  } catch (e) { /* ข้ามได้ ถือว่าไม่ใช่โควตารายวัน ให้ retry ตามพฤติกรรมเดิม */ }
+  return false;
+}
+
+// (fix) คำนวณเวลาที่เหลือ (มิลลิวินาที) จนถึงรอบรีเซ็ตโควตารายวันถัดไปของ Gemini free tier
+// Google รีเซ็ตโควตารายวันของ free tier ตามเวลา Pacific (พฤติกรรมที่เอกสาร/ชุมชนนักพัฒนา Gemini API ยืนยันตรงกัน)
+// ใช้แทนค่า retryDelay สั้นๆ (หลักสิบวินาที) ที่ Google ส่งมาด้วยเสมอไม่ว่าจะชนโควตาแบบไหน ซึ่งใช้ไม่ได้จริงกับกรณีโควตารายวัน
+// (เดิมระบบเชื่อค่า retryDelay ตรงๆ ทำให้ Cooldown ที่แสดงผู้ใช้สั้นเกินจริงมาก ผู้ใช้กดลองใหม่ซ้ำแล้วก็ยังชนโควตาเดิม)
+function millisUntilGeminiDailyReset_() {
+  try {
+    const tz = 'America/Los_Angeles';
+    const now = new Date();
+    const tomorrowDateStr = Utilities.formatDate(new Date(now.getTime() + 24 * 60 * 60 * 1000), tz, 'yyyy-MM-dd');
+    const nextResetInstant = Utilities.parseDate(tomorrowDateStr + ' 00:00:00', tz, 'yyyy-MM-dd HH:mm:ss');
+    return Math.max(nextResetInstant.getTime() - now.getTime(), 60 * 1000);
+  } catch (e) {
+    return 6 * 60 * 60 * 1000; // คำนวณโซนเวลาไม่สำเร็จ (ไม่ควรเกิดขึ้นจริง) — ใช้ค่าปลอดภัย 6 ชม.แทน กันการยิงรัวถี่เกินไปอย่างน้อย
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -3157,6 +3244,18 @@ function callGemini_(promptText, imageBase64) {
     muteHttpExceptions: true
   };
 
+  // (fix) เดิมไม่เช็ค cooldown ที่บันทึกไว้ก่อนยิง request เลย — ทุกครั้งที่กด "สร้างข้อมูล" ซ้ำระหว่างที่รู้อยู่แล้วว่า
+  // โควตายังไม่ว่าง (จาก 429 ครั้งก่อนหน้าที่บันทึก cooldown ไว้) ระบบจะยิง request จริงออกไปอีกอยู่ดี แล้วโดน 429 ซ้ำ
+  // ซึ่งฝั่ง Google นับเป็น request จริงทุกครั้งไม่ว่าจะสำเร็จหรือไม่ — เท่ากับเปลืองโควตาที่เหลืออยู่น้อยนิดไปฟรีๆ
+  // แก้ให้เช็คก่อนเสมอ ถ้ายังอยู่ในช่วง cooldown ให้ error ทันทีโดยไม่ยิง request แม้แต่ครั้งเดียว (ประหยัดโควตาที่สุดเท่าที่ทำได้)
+  const quotaBefore = getGeminiQuotaStatus_();
+  if (quotaBefore.inCooldown) {
+    const mins = Math.max(1, Math.ceil(quotaBefore.cooldownRemainingSeconds / 60));
+    const hrs = Math.floor(mins / 60);
+    const waitLabel = hrs > 0 ? (hrs + ' ชม. ' + (mins % 60) + ' นาที') : (mins + ' นาที');
+    throw new Error('โควตา Gemini ยังไม่ว่าง (อยู่ในช่วงพักที่บันทึกไว้จากการชนโควตาครั้งก่อน) กรุณารออีกประมาณ ' + waitLabel + ' แล้วลองใหม่ — ระบบไม่ได้ยิง request ซ้ำเพื่อประหยัดโควตาที่เหลืออยู่');
+  }
+
   // Free tier ของ Gemini มี rate limit ต่อนาทีค่อนข้างต่ำ ถ้าชนโควตา (HTTP 429) มักหายเองภายในไม่กี่วินาที
   // ส่วน HTTP 503/5xx คือเซิร์ฟเวอร์ Gemini โหลดสูงชั่วคราวฝั่ง Google เอง (คนละสาเหตุกับโควตา) บางครั้งใช้เวลานานกว่าจะหาย
   // จึงแยกเพดานจำนวนครั้ง retry ของ 2 กรณีนี้ออกจากกัน — maxAttempts คือเพดานรวมของ loop (สูงสุดจริง)
@@ -3164,6 +3263,7 @@ function callGemini_(promptText, imageBase64) {
   const maxAttempts = 6;
   const maxQuotaAttempts = 3;
   let code, bodyText, body;
+  let isDailyLimit = false; // (fix) ใช้บอกทั้งตอนตัดสินใจ retry ในลูปนี้ และตอนสร้างข้อความ error ท้ายฟังก์ชัน
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     recordGeminiApiCall_(); // นับ request จริงทุก attempt (รวม retry) ไว้ประมาณการ % โควตาที่ใช้ไป
     const resp = UrlFetchApp.fetch(GEMINI_API_URL, options);
@@ -3172,11 +3272,13 @@ function callGemini_(promptText, imageBase64) {
     try { body = JSON.parse(bodyText); } catch (e) { body = null; }
 
     if (code === 429) {
-      // waitSec นี้เป็นสัญญาณจริงจาก Google ที่ผูกกับ API Key นี้โดยตรง (retryDelay ในตัว error response) ไม่ใช่ค่าประมาณการของเราเอง
-      // บันทึกไว้เป็นเวลาที่โควตาจะว่างจริง ให้หน้าเว็บใช้แสดง Cooldown ที่แม่นยำกว่าการนับจำนวนครั้งเอง และอยู่ทน ข้าม logout/reset ได้เพราะเก็บฝั่งเซิร์ฟเวอร์
-      const waitSec = extractRetryDelaySeconds_(body) || 5;
+      // (fix) แยกกรณีโควตารายวัน (RPD) ออกจากโควตาย่อยรายนาที (RPM) — เดิมใช้ waitSec จาก retryDelay ของ Google
+      // (มักเป็นแค่หลักสิบวินาที) กับ 429 ทุกแบบเหมือนกันหมด ทำให้กรณีโควตารายวันได้ค่า cooldown สั้นเกินจริงมาก
+      // และยัง retry ต่ออีกสูงสุด 3 ครั้งทั้งที่รอแค่ 65 วิไม่มีทางพอจริง (ต้องรอข้ามวัน) — เปลืองโควตาที่เหลือไปฟรีๆ
+      isDailyLimit = isDailyQuotaViolation_(body);
+      const waitSec = isDailyLimit ? (millisUntilGeminiDailyReset_() / 1000) : (extractRetryDelaySeconds_(body) || 5);
       recordGeminiCooldown_(waitSec);
-      if (attempt < maxQuotaAttempts) {
+      if (!isDailyLimit && attempt < maxQuotaAttempts) {
         // เดิมจำกัดรอสูงสุดแค่ 20 วิ แต่ free tier บางครั้งขอให้รอเกือบ 60 วิถึงจะเคลียร์โควตา (เจอจริงจาก error: "Please retry in 59s")
         // รอไม่พอ = ลองซ้ำแล้วก็ยังชนโควตาเดิมอยู่ดี จึงขยับเพดานเป็น 65 วิ ให้รอได้นานพอจริงๆ (ยังปลอดภัยเทียบกับ execution limit 6 นาทีของ Apps Script)
         Utilities.sleep(Math.min(Math.ceil(waitSec) + 2, 65) * 1000);
@@ -3197,8 +3299,13 @@ function callGemini_(promptText, imageBase64) {
 
   if (code !== 200) {
     const msg = body && body.error && body.error.message ? body.error.message : bodyText;
+    // (fix) แยกข้อความกรณีโควตารายวันออกมาให้ตรงความจริง — เดิมบอกว่า "ลองใหม่อัตโนมัติแล้ว...รอสักครู่" ทุกกรณี
+    // ทั้งที่กรณีโควตารายวันไม่มีการ retry จริงแล้ว (ข้ามไปตามจุดแก้ด้านบน) และ "สักครู่" ทำให้เข้าใจผิดว่ารอไม่กี่นาทีจะหาย
+    // ทั้งที่จริงต้องรอข้ามวัน — บอกเวลาที่เหลือจริงและเหตุผลตรงๆ แทน กันผู้ใช้กดลองซ้ำถี่ๆ แล้วเปลืองโควตาที่เหลือไปเปล่าๆ
     const extra = code === 429
-      ? ' — ลองใหม่อัตโนมัติแล้วแต่โควตา Gemini free tier ยังไม่ว่าง กรุณารอสักครู่แล้วกดสร้างข้อมูลอีกครั้ง'
+      ? (isDailyLimit
+        ? (' — โควตารายวัน (RPD) ของ Gemini free tier หมดแล้ว ระบบไม่ retry ซ้ำเพื่อประหยัดโควตาที่เหลือ ต้องรอถึงรอบรีเซ็ตของ Google (เที่ยงคืนตามเวลา Pacific) จึงจะใช้ได้อีกครั้ง กรุณาลองใหม่ภายหลัง')
+        : ' — ลองใหม่อัตโนมัติแล้วแต่โควตา Gemini free tier ยังไม่ว่าง กรุณารอสักครู่แล้วกดสร้างข้อมูลอีกครั้ง')
       : ((code === 503 || code === 500 || code === 502 || code === 504) ? ' — ลองใหม่อัตโนมัติแล้วแต่เซิร์ฟเวอร์ Gemini ยังคงมีผู้ใช้งานหนาแน่นอยู่ กรุณาลองใหม่อีกครั้งในอีกสักครู่' : '');
     throw new Error('Gemini API error (HTTP ' + code + '): ' + msg + extra);
   }
@@ -3355,7 +3462,7 @@ function groupLastRowUnderDateLabel_(sh) {
 
 // บันทึกคะแนนคุณภาพข้อมูลลง Google Sheet แท็บ QualityScores ทุกครั้งที่ generate สำเร็จ (ไม่ผูกกับการ commit)
 // เพื่อให้เอาไปทำรายงาน/ดูสถิติย้อนหลังได้ว่าโดยรวมแล้ว AI สร้างข้อมูลได้ตรงเงื่อนไข/น่าเชื่อถือแค่ไหน
-function logQualityScore_(p, rowsActual, conditionMatchPercent, reliabilityPercent, summary, qualityLevel, passMinimumThreshold) {
+function logQualityScore_(p, rowsActual, conditionMatchPercent, reliabilityPercent, summary, qualityLevel, passMinimumThreshold, usedRuleCompiler) {
   try {
     // ใช้ getOrCreateSheet_ แทน getSheet_ เพื่อให้ทำงานได้เองแม้สเปรดชีตเก่าที่ยังไม่เคยรัน setupSheet() ซ้ำหลังเพิ่มแท็บนี้
     // (getSheet_ จะโยน error ทันทีถ้าไม่พบแท็บ ทำให้เขียนคะแนนไม่ลงเลยแบบเงียบๆ โดยไม่มีใครรู้)
@@ -3366,6 +3473,8 @@ function logQualityScore_(p, rowsActual, conditionMatchPercent, reliabilityPerce
     // เพิ่มคอลัมน์ใหม่แบบไม่ทำลายชีตเก่าที่มีข้อมูลอยู่แล้ว (เหมือน image_file_id/image_url ที่อื่น) แทนการรื้อ headers เดิม
     ensureColumnHeader_(sh, 'quality_level');
     ensureColumnHeader_(sh, 'pass_minimum_threshold');
+    // (เพิ่ม 2026-09-09) บอกว่ารอบนี้ generate ด้วย Logic ไหน (Legacy เต็มรูปแบบ vs Rule-Based Mode) เพื่อเทียบคุณภาพ/ความแม่นยำของทั้งสอง Logic ย้อนหลังเป็นระบบได้
+    ensureColumnHeader_(sh, 'generation_logic');
     const colCount = sh.getLastColumn();
 
     const tz = Session.getScriptTimeZone();
@@ -3392,7 +3501,8 @@ function logQualityScore_(p, rowsActual, conditionMatchPercent, reliabilityPerce
       reliabilityPercent,
       summary || '',
       qualityLevel || 'N/A',
-      passMinCell
+      passMinCell,
+      usedRuleCompiler ? 'Rule-Based Mode' : 'Legacy (AI เต็มรูปแบบ)'
     ]);
     groupLastRowUnderDateLabel_(sh);
   } catch (e) {
@@ -3991,13 +4101,15 @@ function handleGetSavedImage_(p) {
 
 // ใช้แท็บ GeneratedPromptLogs แยกต่างหากจาก SavedPrompts โดยเจตนา — นี่คือกรณี "สร้างข้อมูลแล้วไม่ได้ตั้งใจบันทึกไว้ใช้ต่อ"
 // เก็บไว้เป็นประวัติ/ตรวจสอบย้อนหลังว่าส่ง prompt อะไรไปให้ AI บ้างในแต่ละครั้งเท่านั้น ไม่ปนกับรายการที่ตั้งใจบันทึกไว้ใช้ซ้ำ
-function logGeneratedPrompt_(p, smartPrompt, allowNull, rowsRequested) {
+function logGeneratedPrompt_(p, smartPrompt, allowNull, rowsRequested, usedRuleCompiler) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sh = getOrCreateSheet_(ss, SHEET_NAMES.PROMPT_LOGS);
     setHeadersIfEmpty_(sh, ['timestamp', 'username', 'role', 'data_type', 'table_name', 'dialect', 'rows_requested', 'allow_null', 'ddl_script', 'prompt_addition', 'full_prompt_text', 'image_file_id', 'image_url']);
     ensureColumnHeader_(sh, 'image_file_id');
     ensureColumnHeader_(sh, 'image_url');
+    // (เพิ่ม 2026-09-09) บันทึกว่า generate ครั้งนี้ยิงผ่าน Logic ไหน (Legacy เต็มรูปแบบ vs Rule-Based Mode) ไว้เป็น log เชิงเทคนิคทุกครั้ง ไม่ว่าจะ commit จริงหรือไม่
+    ensureColumnHeader_(sh, 'generation_logic');
 
     // จัดกลุ่มตามวันแบบเดียวกับ ActivityLogs/QualityScores — timestamp อยู่คอลัมน์แรกของชีตนี้
     const tz = Session.getScriptTimeZone();
@@ -4028,7 +4140,8 @@ function logGeneratedPrompt_(p, smartPrompt, allowNull, rowsRequested) {
       p.promptAddition || '',
       smartPrompt || '',
       imageInfo ? imageInfo.fileId : '',
-      imageInfo ? imageInfo.url : ''
+      imageInfo ? imageInfo.url : '',
+      usedRuleCompiler ? 'Rule-Based Mode' : 'Legacy (AI เต็มรูปแบบ)'
     ]);
     groupLastRowUnderDateLabel_(sh);
   } catch (e) {
@@ -4049,6 +4162,9 @@ function handleSavePrompt_(p) {
   // แต่ backend ไม่เคยมีคอลัมน์รองรับค่านี้เลย ทำให้ฟีเจอร์กู้คืน (ดูฝั่งหน้าเว็บ applySelectedPrompt: อ่าน p.reference_columns/p.reference_batch_label) ไม่เคยทำงานได้จริงสักครั้ง เพิ่มคอลัมน์ให้ครบตอนนี้
   ensureColumnHeader_(sh, 'reference_columns');
   ensureColumnHeader_(sh, 'reference_batch_label');
+  // (fix 2026-09-09) หน้าเว็บมี toggle "Rule-Based Mode" (inputUseRuleCompiler) เหมือนฟิลด์อื่นๆ ในฟอร์ม แต่ SavedPrompts ไม่เคยมีคอลัมน์รองรับค่านี้เลย
+  // ทำให้โหลด Prompt กลับมาใช้ครั้งหน้า toggle นี้ไม่ถูกกู้คืนตามที่เคยตั้งไว้ตอนบันทึก (ต่างจากฟิลด์อื่นทุกตัวที่กู้คืนได้ครบ) เพิ่มคอลัมน์ให้ครบตอนนี้
+  ensureColumnHeader_(sh, 'use_rule_compiler');
 
   // จัดกลุ่มตามวันแบบเดียวกับ ActivityLogs/QualityScores — แต่ชีตนี้ timestamp (created_at) อยู่คอลัมน์ที่ 3 ไม่ใช่คอลัมน์แรก (คอลัมน์แรกคือ prompt_name)
   const tz = Session.getScriptTimeZone();
@@ -4082,7 +4198,8 @@ function handleSavePrompt_(p) {
     imageInfo ? imageInfo.fileId : '',
     imageInfo ? imageInfo.url : '',
     (p.referenceColumns && p.referenceColumns.length) ? p.referenceColumns.join(', ') : '',
-    p.referenceBatchLabel || ''
+    p.referenceBatchLabel || '',
+    !!(p.useRuleCompiler === true || p.useRuleCompiler === 'true')
   ]);
   groupLastRowUnderDateLabel_(sh);
   logActivity_(p.username, p.role, 'SAVE_PROMPT', 'บันทึก prompt ชื่อ "' + p.promptName + '" ไว้ใช้ซ้ำ' + (imageInfo ? ' (พร้อมรูปภาพแนบ)' : ''));

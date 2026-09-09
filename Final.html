@@ -699,7 +699,7 @@
             </div>
             <div class="flex gap-2">
                 <button onclick="closeAdminSetEmailModal()" class="w-1/2 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-600 dark:text-slate-300 rounded-lg font-medium text-xs transition-all">ยกเลิก</button>
-                <button onclick="submitAdminSetEmail()" class="w-1/2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-xs transition-all shadow-sm">บันทึกอีเมล</button>
+                <button id="aseSubmitBtn" onclick="submitAdminSetEmail()" class="w-1/2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-xs transition-all shadow-sm">บันทึกอีเมล</button>
             </div>
         </div>
     </div>
@@ -1121,7 +1121,7 @@
                             </div>
                             <div class="flex items-center gap-2 pt-1">
                                 <input id="newPromptNameInput" type="text" placeholder="ตั้งชื่อ Prompt ปัจจุบันเพื่อบันทึกไว้ใช้ซ้ำ" class="flex-1 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
-                                <button onclick="saveCurrentPrompt()" class="px-3 py-2 text-xs font-semibold bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800 transition-all whitespace-nowrap">
+                                <button id="savePromptBtn" onclick="saveCurrentPrompt()" class="px-3 py-2 text-xs font-semibold bg-blue-50 dark:bg-blue-950 hover:bg-blue-100 text-blue-600 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800 transition-all whitespace-nowrap">
                                     บันทึก
                                 </button>
                             </div>
@@ -1178,6 +1178,15 @@
                             <div class="gen-toggle-row-head">
                                 <label for="inputAllowNull" class="gen-toggle-row-label">อนุญาตให้มีค่าว่าง (Allow Null)</label>
                                 <input type="checkbox" id="inputAllowNull" class="gen-switch-checkbox">
+                            </div>
+                        </div>
+
+                        <!-- (feature) ทางเลือกคู่ขนาน Rule Compiler (Beta) — ปิดไว้เป็นค่าเริ่มต้นเสมอ ไม่ติ๊กจะได้พฤติกรรมเดิมทุกประการ
+                             แนวคิด: เรียก Gemini สูงสุด 2 ครั้งต่อคำขอ (แปลเงื่อนไข -> สุ่มค่าด้วยโค้ด) แทนให้ AI เขียนทุกแถวเอง ดูรายละเอียดที่ RuleCompilerPrompt.gs / RuleDispatcher.gs -->
+                        <div class="gen-toggle-row">
+                            <div class="gen-toggle-row-head">
+                                <label for="inputUseRuleCompiler" class="gen-toggle-row-label">Rule-Based Mode</label>
+                                <input type="checkbox" id="inputUseRuleCompiler" class="gen-switch-checkbox">
                             </div>
                         </div>
 
@@ -1928,6 +1937,8 @@
         let isAborted = false;
         // ตัวล็อกกันกดปุ่ม "สร้างข้อมูลทดสอบ" ซ้อนกันรัวๆ (นอกเหนือจากการ disable ปุ่มที่ DOM) กันไม่ให้ยิง Gemini เกินจำเป็นโดยไม่ตั้งใจ
         let isGeneratingData = false;
+        // ตัว interval ของหลอดเปอร์เซ็นต์ตอนโหลดสร้างข้อมูล — ไต่ขึ้นเรื่อยๆ ระหว่างรอผลจริงจาก backend เท่านั้น ไม่ใช่ค่าปลอม 100% ทันที
+        let genProgressTimer_ = null;
 
         // ตัวแปรเพิ่มสำหรับเก็บข้อมูลที่โดน Filter แล้วพักไว้เพื่อแสดงผลใน Data Preview
         let excelFilteredRows = null;
@@ -2892,6 +2903,9 @@
                 "bg-rose-600 hover:bg-rose-700", /* (v125) ปุ่มยืนยัน เปลี่ยนจาก bg-blue-600 (จริงๆ ถูก override เป็นสีดำทั้งระบบอยู่แล้ว ดู .bg-blue-600 ด้านบน) เป็นแดง(rose) ตามที่แจ้ง */
                 async function(confirmed) {
                     if (confirmed) {
+                        // (เพิ่ม) โชว์ Toast กำลังดำเนินการทันทีที่กดยืนยัน กันหน้าจอเงียบไม่มีอะไรขึ้นระหว่างรอ backend ตอบกลับ
+                        showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังออกจากระบบ กรุณารอสักครู่...</div>`);
+
                         const outgoingUsername = loggedInUsername;
                         const outgoingRole = loggedInRole;
                         const outgoingToken = currentSessionToken;
@@ -2903,6 +2917,7 @@
                             // แม้บันทึก log ฝั่ง backend ไม่สำเร็จ ก็ยังต้องปล่อยให้ผู้ใช้ออกจากระบบต่อไปได้ตามปกติ
                             pushLog('ERROR', `ออกจากระบบสำเร็จ แต่บันทึก log ลงฐานข้อมูลไม่สำเร็จ: ${err.message}`);
                         }
+                        closeCustomAlert(); // ปิด Toast ก่อนสลับกลับไปหน้า auth เสมอ ไม่ว่าจะสำเร็จหรือพลาด
 
                         // ล้าง session token ที่เก็บไว้ใน localStorage + ยกเลิกตัวจับเวลา Auto Logout ทันที เพราะออกจากระบบเองแล้วไม่ต้องรอนับถอยหลังต่อ
                         if (idleLogoutTimerId) { clearTimeout(idleLogoutTimerId); idleLogoutTimerId = null; }
@@ -2935,6 +2950,7 @@
                 "bg-rose-600 hover:bg-rose-700",
                 async function (confirmed) {
                     if (!confirmed) return;
+                    showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังส่งคำขอ กรุณารอสักครู่...</div>`);
                     try {
                         await callBackend('requestDeleteAccount', { username: loggedInUsername, role: loggedInRole });
                         pushLog('SUCCESS', `ส่งคำขอลบบัญชีสำเร็จ: [username: ${loggedInUsername}]`);
@@ -3447,8 +3463,16 @@
                         td.innerHTML = isTrue 
                             ? `<span class="bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 font-sans font-semibold text-[10px]">TRUE</span>`
                             : `<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 font-sans font-semibold text-[10px]">FALSE</span>`;
-                    } else if (!isNaN(cellVal) && cellVal !== "" && typeof cellVal !== 'boolean') {
-                        td.innerText = Number(cellVal).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 3});
+                    } else if (typeof cellVal === 'number') {
+                        // (fix) เดิมเช็คแค่ "หน้าตา" ของค่า (!isNaN บนค่าที่อาจเป็น string ก็ได้) ไม่ได้เช็คชนิดข้อมูลจริง
+                        // ทำให้คอลัมน์ที่เป็นรหัส/เบอร์โทร (citizen_id, phone) ซึ่งบังเอิญมีแต่ตัวเลขล้วนถูก format เป็นจำนวนเงินไปด้วย
+                        // (ใส่ comma คั่นหลักพัน และร้ายแรงกว่านั้นคือเลข 0 นำหน้าของเบอร์โทรหายไปเงียบๆ เพราะ Number("0653389550")
+                        // ตัดเลข 0 นำหน้าทิ้งไปเลย — พบจริงตอนทดสอบ Rule Compiler (Beta) 2026-09)
+                        // แก้โดยเช็คจากชนิดข้อมูลจริง (typeof) แทน: generator ของ Rule Compiler (RuleDispatcher.gs) ออกแบบไว้แล้วว่า
+                        // ค่าที่เป็น "จำนวน" จริง (sum_assured/bonus จาก number_range/percent_of) จะเป็น JS number เสมอ
+                        // ส่วนค่าที่เป็น "รหัส/ตัวระบุ" (citizen_id, phone, policy_no, employee_id) จะเป็น string เสมอ (join/concat มา)
+                        // จึงแยกสองกลุ่มนี้ได้แม่นยำกว่าการเดาจากหน้าตาของค่ามาก และใช้ได้กับทุกชุดข้อมูล ไม่ใช่แค่ชุดที่เจอปัญหา
+                        td.innerText = cellVal.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 3});
                     } else {
                         td.innerText = cellVal;
                     }
@@ -3779,7 +3803,34 @@
             }, 450);
         }
 
+        // เริ่มไต่หลอดเปอร์เซ็นต์แบบค่อยๆช้าลงเข้าใกล้ 92% (asymptotic) — ตั้งใจไม่ให้ไปถึง 100% เอง ต้องรอ finishGenProgress_() ตอนผลจริงมาถึงเท่านั้น
+        function startGenProgress_() {
+            stopGenProgress_();
+            const pbInit = document.getElementById('aiProgressBar');
+            if (pbInit) pbInit.style.width = '0%';
+            let pct = 0;
+            genProgressTimer_ = setInterval(() => {
+                const pb = document.getElementById('aiProgressBar');
+                if (!pb) { stopGenProgress_(); return; }
+                pct += (92 - pct) * 0.10 + 0.4;
+                if (pct > 92) pct = 92;
+                pb.style.width = pct.toFixed(1) + '%';
+            }, 350);
+        }
+
+        function stopGenProgress_() {
+            if (genProgressTimer_) { clearInterval(genProgressTimer_); genProgressTimer_ = null; }
+        }
+
+        // เรียกเมื่อผลลัพธ์จริงกลับมาจาก backend แล้วเท่านั้น — หยุดไต่ค่าและปิดเต็ม 100% ทันที
+        function finishGenProgress_() {
+            stopGenProgress_();
+            const pb = document.getElementById('aiProgressBar');
+            if (pb) pb.style.width = '100%';
+        }
+
         function abortGeneration() {
+            stopGenProgress_();
             isAborted = true;
             showCustomAlert("ยกเลิกการสร้างข้อมูลจำลองเรียบร้อยแล้ว");
             const btnElement = document.querySelector('[onclick="triggerClaudeGeneration(this)"]');
@@ -3802,6 +3853,7 @@
             const dialect = document.getElementById('inputDbDialect').value;
             const structureScript = document.getElementById('inputStructureScript').value.trim();
             const allowNull = document.getElementById('inputAllowNull').checked;
+            const useRuleCompiler = document.getElementById('inputUseRuleCompiler').checked;
 
             if (!type) {
                 showCustomAlert("กรุณาระบุข้อมูลที่ต้องการสร้างเพื่อให้ระบบทำการประมวลผลข้อมูลจำลอง");
@@ -3848,7 +3900,7 @@
                 </div>
                 <p class="text-[10px] text-blue-500 animate-pulse">ระบบกำลังส่งคำสั่งไปยัง AI API เพื่อสร้างข้อมูล กรุณารอสักครู่...</p>
             `);
-            setTimeout(() => { const pb = document.getElementById('aiProgressBar'); if (pb) pb.style.width = '100%'; }, 50);
+            startGenProgress_();
 
             if (selectedSchemaImageBase64) {
                 pushLog('WARN', `ส่งข้อมูลและรูปภาพ Schema ไปยัง AI API เพื่อแกะโครงสร้างตารางและสร้างข้อมูล: [Type: ${type}] [Table: ${tableNameInput}] [Rows: ${rowsCount}] [Dialect: ${dialect}]`);
@@ -3874,6 +3926,7 @@
                     dialect: dialect,
                     rowsRequested: rowsCount,
                     allowNull: allowNull,
+                    useRuleCompiler: useRuleCompiler,
                     structureScript: structureScript,
                     promptAddition: promptAdd,
                     schemaImageBase64: selectedSchemaImageBase64 || null,
@@ -3882,6 +3935,10 @@
                 });
 
                 if (isAborted) { closeCustomAlert(); restoreButton(); return; }
+
+                // ผลจริงกลับมาแล้ว — ปิดหลอดเป็น 100% แล้วเว้นจังหวะสั้นๆให้เห็นก่อนปิด modal
+                finishGenProgress_();
+                await new Promise(resolve => setTimeout(resolve, 300));
 
                 closeCustomAlert();
                 restoreButton();
@@ -3899,6 +3956,8 @@
                 pushLog('ERROR', `เรียก AI API ไม่สำเร็จ: ${err.message}`);
                 showCustomAlert("เกิดข้อผิดพลาดในการสร้างข้อมูล: " + err.message);
             } finally {
+                // กันหลอดค้างไต่ต่อในพื้นหลังถ้ามี path ไหนหลุดไม่ได้เรียก stop/finish ครบ (เช่น error)
+                stopGenProgress_();
                 // เผื่อไว้อีกชั้น กันปุ่มค้างที่ isGeneratingData = true ถ้ามี path ไหนหลุดไม่ได้เรียก restoreButton() ครบ
                 isGeneratingData = false;
                 // อัปเดตตัวเลข % การใช้โควตา Gemini ให้เห็นล่าสุดหลัง generate ทุกครั้ง (ไม่ว่าจะสำเร็จหรือพลาด เพราะมีการยิง request ไปแล้วทั้งคู่)
@@ -3957,8 +4016,12 @@
                 const itemEl = document.getElementById(`checkItem${i}`);
                 if (iconEl) iconEl.innerHTML = checklist[i].ok ? '✅' : '❌';
                 if (itemEl && !checklist[i].ok) {
-                    itemEl.classList.remove('bg-slate-50 dark:bg-slate-900', 'border-slate-100 dark:border-slate-700');
-                    itemEl.classList.add('bg-rose-50 dark:bg-rose-950', 'border-rose-100 dark:border-rose-800');
+                    // (fix) classList.remove/add แต่ละ argument ต้องเป็น class เดี่ยวไม่มีช่องว่างข้างใน
+                    // เดิมส่ง 'bg-slate-50 dark:bg-slate-900' เป็นก้อนเดียว (จริงๆ คือ 2 class รวมกัน) ทำให้ browser โยน
+                    // InvalidCharacterError ทันทีเวลามีเช็คข้อไหนไม่ผ่าน (❌) แล้วฟังก์ชันนี้หยุดทำงานกลางคันเงียบๆ
+                    // ทำให้ % คะแนน/ข้อความ AI self-check ที่ควรต่อท้ายมาไม่ถูกแสดงเลย — แก้โดย split ทีละ token ก่อนส่งเข้า classList
+                    itemEl.classList.remove(...'bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-700'.split(' '));
+                    itemEl.classList.add(...'bg-rose-50 dark:bg-rose-950 border-rose-100 dark:border-rose-800'.split(' '));
                 }
             }
 
@@ -4559,6 +4622,7 @@
                 "bg-rose-600 hover:bg-rose-700",
                 async function (confirmed) {
                     if (!confirmed) return;
+                    showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังลบชุดข้อมูล กรุณารอสักครู่...</div>`);
                     try {
                         await callBackend('deleteGeneratedDatasetBatch', {
                             username: loggedInUsername,
@@ -4906,6 +4970,7 @@
                 "bg-rose-600 hover:bg-rose-700",
                 async function (confirmed) {
                     if (!confirmed) return;
+                    showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังลบชุดข้อมูล กรุณารอสักครู่...</div>`);
                     try {
                         await callBackend('deleteGeneratedDatasetBatch', {
                             username: loggedInUsername,
@@ -5170,6 +5235,7 @@
                 "bg-emerald-600 hover:bg-emerald-700",
                 async function (confirmed) {
                     if (!confirmed) return;
+                    showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังดำเนินการ กรุณารอสักครู่...</div>`);
                     try {
                         await callBackend('approveSuperAdminRequest', { requestingUsername: loggedInUsername, targetUsername: username });
                         pushLog('SUCCESS', `อนุมัติคำขอสมัคร Super Admin ของ "${username}" เรียบร้อยแล้ว`);
@@ -5191,6 +5257,7 @@
                 "bg-rose-600 hover:bg-rose-700",
                 async function (confirmed) {
                     if (!confirmed) return;
+                    showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังดำเนินการ กรุณารอสักครู่...</div>`);
                     try {
                         await callBackend('rejectSuperAdminRequest', { requestingUsername: loggedInUsername, targetUsername: username });
                         pushLog('SUCCESS', `ปฏิเสธคำขอสมัคร Super Admin ของ "${username}" และลบบัญชีเรียบร้อยแล้ว`);
@@ -5212,6 +5279,7 @@
                 "bg-amber-600 hover:bg-amber-700",
                 async function (confirmed) {
                     if (!confirmed) return;
+                    showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังดำเนินการ กรุณารอสักครู่...</div>`);
                     try {
                         await callBackend('dismissDeleteAccountRequest', { requestingUsername: loggedInUsername, targetUsername: username });
                         pushLog('SUCCESS', `ยกเลิกคำขอลบบัญชีของ "${username}" เรียบร้อยแล้ว`);
@@ -5233,6 +5301,7 @@
                 "bg-rose-600 hover:bg-rose-700",
                 async function (confirmed) {
                     if (!confirmed) return;
+                    showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังลบผู้ใช้งาน กรุณารอสักครู่...</div>`);
                     try {
                         await callBackend('deleteUser', { requestingUsername: loggedInUsername, targetUsername: username });
                         pushLog('SUCCESS', `ลบผู้ใช้งาน "${username}" ออกจากระบบเรียบร้อยแล้ว`);
@@ -5291,6 +5360,10 @@
                 return;
             }
             const newPassword = document.getElementById('arpNewPassword').value;
+            const btn = document.getElementById('arpSubmitBtn');
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="inline-block animate-spin mr-1">⏳</span> กำลังบันทึก...`;
             try {
                 await callBackend('adminResetPassword', {
                     requestingUsername: loggedInUsername,
@@ -5302,6 +5375,9 @@
                 closeAdminResetPasswordModal();
             } catch (err) {
                 showCustomAlert("รีเซ็ตรหัสผ่านไม่สำเร็จ: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
             }
         }
 
@@ -5325,6 +5401,10 @@
                 showCustomAlert("กรุณากรอกอีเมลให้ถูกต้องตามรูปแบบ");
                 return;
             }
+            const btn = document.getElementById('aseSubmitBtn');
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="inline-block animate-spin mr-1">⏳</span> กำลังบันทึก...`;
             try {
                 await callBackend('adminSetUserEmail', {
                     requestingUsername: loggedInUsername,
@@ -5337,6 +5417,9 @@
                 openAdminUserPanel(); // โหลดรายการใหม่ให้เห็นผลทันที
             } catch (err) {
                 showCustomAlert("บันทึกอีเมลไม่สำเร็จ: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
             }
         }
 
@@ -5387,6 +5470,10 @@
                 return;
             }
             const newPassword = document.getElementById('copNewPassword').value;
+            const btn = document.getElementById('copSubmitBtn');
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="inline-block animate-spin mr-1">⏳</span> กำลังบันทึก...`;
             try {
                 await callBackend('changeOwnPassword', {
                     username: loggedInUsername,
@@ -5398,6 +5485,9 @@
                 closeChangeOwnPasswordModal();
             } catch (err) {
                 showCustomAlert("เปลี่ยนรหัสผ่านไม่สำเร็จ: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
             }
         }
 
@@ -5504,19 +5594,31 @@
                 select.innerHTML = savedPromptsCache.length
                     ? '<option value="">-- เลือก Prompt ที่จะโหลด --</option>'
                     : '<option value="">-- ยังไม่มี prompt ที่บันทึกไว้ --</option>';
+                // (fix 2026-09-09) เจอจริงว่าบางแถว data_type ที่อ่านจากชีตเป็น boolean แทนที่จะเป็น string (เช่น cell เผลอพิมพ์ TRUE/FALSE ตรงๆ ทำให้ Google Sheets แปลงชนิดข้อมูลเป็น boolean จริงตอนอ่านด้วย getValues())
+                // เดิม (p.data_type || '').trim() พังทันทีถ้า data_type ไม่ใช่ string (.trim ไม่มีใน boolean) และ forEach ไม่มี try/catch ของตัวเอง ทำให้รายการเดียวที่เสียพัง dropdown ทั้งหมดไปโดยไม่จำเป็น
+                // แก้ 2 ชั้น: (1) ใช้ String(...) แปลงให้เป็น string เสมอก่อน .trim() กันพังจากชนิดข้อมูลผิดคาด (2) ห่อ try/catch รายรายการ กันรายการเสียแถวเดียวดึงรายการอื่นที่ปกติดีพังไปด้วย
+                let skippedSavedPromptsCount = 0;
                 savedPromptsCache.forEach((p, idx) => {
-                    const opt = document.createElement('option');
-                    opt.value = idx;
-                    const name = (p.prompt_name || '').trim();
-                    const dataType = (p.data_type || '').trim();
-                    // ไม่ต้องต่อท้าย (data_type) ซ้ำถ้าชื่อ prompt มีข้อความเดียวกันอยู่แล้ว จะได้ไม่ยาวเป็นสองเท่าจนล้นกรอบ
-                    const typeSuffix = (dataType && !name.includes(dataType)) ? ` (${dataType})` : '';
-                    const fullLabel = `${name}${typeSuffix}`;
-                    const displayLabel = fullLabel.length > 55 ? fullLabel.slice(0, 52) + '...' : fullLabel;
-                    opt.innerText = displayLabel;
-                    opt.title = fullLabel;
-                    select.appendChild(opt);
+                    try {
+                        const opt = document.createElement('option');
+                        opt.value = idx;
+                        const name = String(p.prompt_name || '').trim();
+                        const dataType = String(p.data_type || '').trim();
+                        // ไม่ต้องต่อท้าย (data_type) ซ้ำถ้าชื่อ prompt มีข้อความเดียวกันอยู่แล้ว จะได้ไม่ยาวเป็นสองเท่าจนล้นกรอบ
+                        const typeSuffix = (dataType && !name.includes(dataType)) ? ` (${dataType})` : '';
+                        const fullLabel = `${name}${typeSuffix}`;
+                        const displayLabel = fullLabel.length > 55 ? fullLabel.slice(0, 52) + '...' : fullLabel;
+                        opt.innerText = displayLabel;
+                        opt.title = fullLabel;
+                        select.appendChild(opt);
+                    } catch (itemErr) {
+                        skippedSavedPromptsCount++;
+                        pushLog('ERROR', `ข้าม Prompt แถวที่ ${p.sheetRow || (idx + 1)} ใน dropdown เพราะข้อมูลผิดรูปแบบ: ${itemErr.message}`);
+                    }
                 });
+                if (skippedSavedPromptsCount > 0) {
+                    pushLog('WARN', `มี Prompt ที่บันทึกไว้ ${skippedSavedPromptsCount} รายการข้อมูลผิดรูปแบบ ถูกข้ามจาก dropdown — ลองเปิด Google Sheet แท็บ SavedPrompts ตรวจแถวที่แจ้งไว้ใน log ด้านบน`);
+                }
             } catch (err) {
                 pushLog('ERROR', `โหลดรายการ Prompt ที่บันทึกไว้ไม่สำเร็จ: ${err.message}`);
                 const select = document.getElementById('savedPromptsSelect');
@@ -5541,6 +5643,8 @@
             refreshCustomSelectLabel_('inputDbDialect'); // (v106) ตั้งค่า .value ตรงๆ แบบนี้ไม่ยิง change event ให้เอง ต้อง sync label ของ custom dropdown ด้วยมือ
             document.getElementById('inputRows').value = p.rows_requested || '';
             document.getElementById('inputAllowNull').checked = (p.allow_null === true || p.allow_null === 'TRUE' || p.allow_null === 'true');
+            // (fix 2026-09-09) กู้คืน toggle "Rule-Based Mode" ตามที่เคยตั้งไว้ตอนบันทึก Prompt นี้ (เดิมไม่มีคอลัมน์นี้เลย ค้างอยู่ที่สถานะปัจจุบันของหน้าจอเสมอ)
+            document.getElementById('inputUseRuleCompiler').checked = (p.use_rule_compiler === true || p.use_rule_compiler === 'TRUE' || p.use_rule_compiler === 'true');
             document.getElementById('inputStructureScript').value = p.structure_script || p.ddl_script || '';
             document.getElementById('inputPrompt').value = p.prompt_addition || '';
 
@@ -5622,6 +5726,7 @@
                 "bg-rose-600 hover:bg-rose-700",
                 async function (confirmed) {
                     if (!confirmed) return;
+                    showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังลบ Prompt กรุณารอสักครู่...</div>`);
                     try {
                         await callBackend('deletePrompt', {
                             username: loggedInUsername,
@@ -5660,6 +5765,10 @@
                 return;
             }
 
+            const btn = document.getElementById('savePromptBtn');
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="inline-block animate-spin">⏳</span>`;
             try {
                 // (v74) แนบชื่อคอลัมน์ที่เลือกล็อกไว้ (ถ้าเปิดใช้ Reference Column Lock อยู่ตอนกดบันทึก) เพื่อบันทึกไว้ใน SavedPrompts เป็นข้อมูลอ้างอิง
                 // ไม่ได้บันทึก referenceRows (ข้อมูลจริงจากชุดที่อ้างอิง) เพราะเป็นข้อมูล ณ ขณะนั้นที่อาจถูกลบ/เปลี่ยนไปแล้วตอนโหลด prompt กลับมาใช้ภายหลัง
@@ -5679,7 +5788,8 @@
                     promptAddition: promptAdd,
                     imageBase64: selectedSchemaImageBase64 || null,
                     referenceColumns: referenceColumnsForSave,
-                    referenceBatchLabel: referenceBatchLabelForSave
+                    referenceBatchLabel: referenceBatchLabelForSave,
+                    useRuleCompiler: document.getElementById('inputUseRuleCompiler').checked
                 });
                 nameInput.value = "";
                 pushLog('SUCCESS', `บันทึก Prompt "${promptName}" ไว้ใช้ซ้ำเรียบร้อยแล้ว${selectedSchemaImageBase64 ? ' (พร้อมรูปภาพแนบ)' : ''}`);
@@ -5687,6 +5797,9 @@
                 loadSavedPrompts();
             } catch (err) {
                 showCustomAlert("บันทึก Prompt ไม่สำเร็จ: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtnHtml;
             }
         }
 
@@ -5918,6 +6031,7 @@
             
             document.getElementById('inputStructureScript').value = "";
             document.getElementById('inputAllowNull').checked = false;
+            document.getElementById('inputUseRuleCompiler').checked = false;
             resetReferenceDataSection();
 
             // เลิกเลือก Prompt ที่เคยบันทึกไว้ (ใช้ซ้ำได้) กลับไปเป็นค่า default ด้วย ไม่ให้ค้างเป็นตัวที่เคยเลือกไว้ก่อนกดรีเซ็ต
