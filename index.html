@@ -1964,46 +1964,63 @@
                 showCustomAlert('ยังไม่ได้ตั้งค่าการเชื่อมต่อ Backend<br><br>กรุณาแก้ไขตัวแปร <b>BACKEND_URL</b> ในไฟล์นี้ให้เป็น URL ของ Google Apps Script Web App ที่ deploy แล้ว (ดูขั้นตอนใน DEPLOY_GUIDE.md)');
                 throw new Error('BACKEND_URL ยังไม่ได้ตั้งค่า');
             }
-            // (v155) เดิมถ้า response อ่านเป็น JSON ไม่ได้ (เช่น Google Apps Script ตอบ error page แบบ HTML ชั่วคราวตอนเซิร์ฟเวอร์สะดุด) จะพังทันทีโดยไม่ลองซ้ำเลย
-            // เพิ่ม retry อัตโนมัติสูงสุด 2 ครั้งก่อนพังจริง เผื่อเป็นปัญหาชั่วคราวฝั่ง Google เอง (คล้ายปัญหา 503 ของ Gemini ที่เจอมาก่อนหน้านี้) — ถ้าลองซ้ำแล้วยังไม่ได้จริงๆ ค่อยฟ้อง error เดิม
-            const maxAttempts = 2;
-            let json = null;
-            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-                let res;
-                try {
-                    res = await fetch(BACKEND_URL, {
-                        method: 'POST',
-                        // ใช้ text/plain เพื่อเลี่ยง CORS preflight request ซึ่ง Apps Script Web App ไม่รองรับ
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify(Object.assign({ action: action }, payload))
-                    });
-                } catch (networkErr) {
-                    throw new Error('เชื่อมต่อ Backend ไม่ได้ (เครือข่าย/URL ผิด): ' + networkErr.message);
-                }
-                try {
-                    json = await res.json();
-                    break; // parse สำเร็จ ออกจาก loop เลย ไม่ต้องลองซ้ำ
-                } catch (parseErr) {
-                    if (attempt < maxAttempts) {
-                        await new Promise(function (resolve) { setTimeout(resolve, 1500); });
-                        continue;
+
+            // บั๊กที่เจอ: ตอนแรกแก้ Auto Logout ให้เฉพาะตอนรอผล "สร้างข้อมูล" (Generate) เท่านั้น (ผูกไว้กับหลอด progress bar)
+            // แต่จริงๆ แล้วคำขอ backend action ไหนก็ตามที่ใช้เวลานาน (เช่น Commit ข้อมูลจำนวนมากลง Google Sheet) ก็โดนปัญหาเดียวกันได้หมด
+            // เพราะระหว่างรอ (await fetch) ถ้าผู้ใช้แค่นั่งรอเฉยๆ ไม่แตะอะไรเลย ตัวจับเวลา Auto Logout จะเข้าใจผิดว่า idle ทั้งที่ระบบกำลังทำงานให้อยู่จริง
+            // แก้ให้ครอบคลุมทุก action รวมศูนย์ตรงนี้จุดเดียว แทนที่จะต้องไปแก้ทีละหน้าจอ/ทีละปุ่ม: นับว่า "กำลังรอ backend ตอบกลับ" เป็น activity ตลอดช่วงที่ยังรอ (รวมตอน retry ด้วย)
+            handleUserActivity();
+            const backendWaitHeartbeat_ = setInterval(handleUserActivity, 4000);
+
+            try {
+                // (v155) เดิมถ้า response อ่านเป็น JSON ไม่ได้ (เช่น Google Apps Script ตอบ error page แบบ HTML ชั่วคราวตอนเซิร์ฟเวอร์สะดุด) จะพังทันทีโดยไม่ลองซ้ำเลย
+                // เพิ่ม retry อัตโนมัติสูงสุด 2 ครั้งก่อนพังจริง เผื่อเป็นปัญหาชั่วคราวฝั่ง Google เอง (คล้ายปัญหา 503 ของ Gemini ที่เจอมาก่อนหน้านี้) — ถ้าลองซ้ำแล้วยังไม่ได้จริงๆ ค่อยฟ้อง error เดิม
+                const maxAttempts = 2;
+                let json = null;
+                for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                    let res;
+                    try {
+                        res = await fetch(BACKEND_URL, {
+                            method: 'POST',
+                            // ใช้ text/plain เพื่อเลี่ยง CORS preflight request ซึ่ง Apps Script Web App ไม่รองรับ
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify(Object.assign({ action: action }, payload))
+                        });
+                    } catch (networkErr) {
+                        throw new Error('เชื่อมต่อ Backend ไม่ได้ (เครือข่าย/URL ผิด): ' + networkErr.message);
                     }
-                    throw new Error('Backend ตอบกลับมาในรูปแบบที่อ่านไม่ได้ (ตรวจสอบว่า deploy เป็น Web App ที่ Access = Anyone แล้ว)');
+                    try {
+                        json = await res.json();
+                        break; // parse สำเร็จ ออกจาก loop เลย ไม่ต้องลองซ้ำ
+                    } catch (parseErr) {
+                        if (attempt < maxAttempts) {
+                            await new Promise(function (resolve) { setTimeout(resolve, 1500); });
+                            continue;
+                        }
+                        throw new Error('Backend ตอบกลับมาในรูปแบบที่อ่านไม่ได้ (ตรวจสอบว่า deploy เป็น Web App ที่ Access = Anyone แล้ว)');
+                    }
                 }
+                if (!json.success) {
+                    const err = new Error(json.error || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุจาก Backend');
+                    // แปะ flag นี้ไว้เสมอเมื่อ error มาจาก "backend ตอบกลับมาจริง" (parse JSON สำเร็จ แค่ success:false) — ต่างจาก error ที่โยนไปก่อนหน้านี้ในฟังก์ชัน
+                    // (เชื่อมต่อไม่ได้ / อ่าน response ไม่ได้) ซึ่งไม่มี flag นี้ ใช้แยกแยะว่า error นี้เป็นคำตอบจริงจาก backend หรือแค่ปัญหาเครือข่ายชั่วคราว
+                    // (ผู้เรียกใช้ เช่น renewSessionIfNeeded ใช้แยกว่าควรเชื่อว่า session หมดอายุจริงไหม หรือแค่เน็ตกระตุกแล้วไม่ควร Auto Logout ทิ้ง)
+                    err.backendResponded = true;
+                    // ถ้า backend แนบจำนวนวินาทีที่ถูกล็อกบัญชีมาด้วย (login lockout) ส่งต่อไปให้ผู้เรียกใช้จัดการ เช่น ปิดปุ่ม "เข้าสู่ระบบ" ชั่วคราว
+                    if (typeof json.lockedSeconds === 'number') {
+                        err.lockedSeconds = json.lockedSeconds;
+                    }
+                    // ถ้า backend แจ้งว่าเป็นคำขอ (สมัคร/ล็อกอิน) ที่ยังรอ Super Admin หลักอนุมัติอยู่ ส่งต่อ flag นี้ไปให้ผู้เรียกใช้แสดงผลต่างจาก error ทั่วไปได้ถ้าจำเป็น
+                    if (json.pendingApproval) {
+                        err.pendingApproval = true;
+                    }
+                    throw err;
+                }
+                return json;
+            } finally {
+                // เลิกนับ activity ปลอมทันทีที่ backend ตอบกลับมาแล้ว (ไม่ว่าสำเร็จหรือ error) กลับไปนับ idle ตามการใช้งานจริงตามปกติ
+                clearInterval(backendWaitHeartbeat_);
             }
-            if (!json.success) {
-                const err = new Error(json.error || 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุจาก Backend');
-                // ถ้า backend แนบจำนวนวินาทีที่ถูกล็อกบัญชีมาด้วย (login lockout) ส่งต่อไปให้ผู้เรียกใช้จัดการ เช่น ปิดปุ่ม "เข้าสู่ระบบ" ชั่วคราว
-                if (typeof json.lockedSeconds === 'number') {
-                    err.lockedSeconds = json.lockedSeconds;
-                }
-                // ถ้า backend แจ้งว่าเป็นคำขอ (สมัคร/ล็อกอิน) ที่ยังรอ Super Admin หลักอนุมัติอยู่ ส่งต่อ flag นี้ไปให้ผู้เรียกใช้แสดงผลต่างจาก error ทั่วไปได้ถ้าจำเป็น
-                if (json.pendingApproval) {
-                    err.pendingApproval = true;
-                }
-                throw err;
-            }
-            return json;
         }
 
         function previewSchemaImage(event) {
@@ -2166,8 +2183,16 @@
                 const result = await callBackend('renewSession', { token: currentSessionToken });
                 updateStoredSessionExpiry(Date.now() + (result.expiresInSeconds * 1000), loggedInUsername, loggedInRole);
             } catch (err) {
-                // token หมดอายุไปแล้วจริงฝั่งเซิร์ฟเวอร์ (เช่น ปิดคอมพิวเตอร์ค้างไว้นานจนพลาดจังหวะต่ออายุ) บังคับ logout ให้ตรงกับความเป็นจริง
-                forceSessionLogout();
+                // บั๊กที่เจอ: เดิม error อะไรก็ตามจากการต่ออายุ session (แม้แค่เน็ตกระตุกชั่วคราว หรือ Apps Script ตอบ error page ชั่วคราวตอนสะดุด)
+                // จะถูกตีความว่า "session หมดอายุจริง" แล้วบังคับ Auto Logout ทันทีเหมือนกันหมด ทั้งที่จริงอาจแค่ต่ออายุไม่สำเร็จรอบนี้เฉยๆ ไม่ได้แปลว่า token ใช้ไม่ได้แล้วจริง
+                // ยิ่งตอนนี้ callBackend ทุกคำขอมี heartbeat เรียก renewSessionIfNeeded ถี่ขึ้นมาก (ทุก ๆ ~15 วิระหว่างรอ backend คำขอไหนก็ตาม) ยิ่งมีโอกาสเจอปัญหาเครือข่ายชั่วคราวบ่อยขึ้นตามไปด้วย
+                // แก้โดยเชื่อว่า "session หมดอายุจริง" เฉพาะตอนที่ backend ตอบกลับมาจริงๆ ว่าไม่ผ่าน (err.backendResponded === true) เท่านั้น
+                // ถ้าเป็นแค่เชื่อมต่อไม่ได้/อ่านคำตอบไม่ได้ชั่วคราว ให้ปล่อยผ่านรอบนี้ไปเงียบๆ แล้วรอบถัดไป (throttle ทุก 15 วิ) จะลองต่ออายุใหม่เองอัตโนมัติ ไม่ต้อง Auto Logout ทิ้งฟรีๆ
+                if (err.backendResponded) {
+                    forceSessionLogout();
+                } else {
+                    pushLog('WARN', `ต่ออายุ session ไม่สำเร็จชั่วคราว (จะลองใหม่อัตโนมัติ ไม่ Auto Logout): ${err.message}`);
+                }
             }
         }
 
