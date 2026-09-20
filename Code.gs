@@ -125,6 +125,10 @@ function setupSheet() {
   // จะข้ามไปเฉยๆ ถ้าชีตมีหัวตารางอยู่แล้ว) ต้องเพิ่มคอลัมน์ใหม่ต่อท้ายให้ชีตเก่าด้วยแทน
   ensureColumnHeader_(sh, 'last_read_by_admin_at');
   ensureColumnHeader_(sh, 'last_read_by_user_at');
+  // (feature 2026-09-20) เก็บเวลาที่เรื่องถูก "ปิด" ล่าสุดไว้ด้วย ใช้คำนวณว่าเรื่องนี้ "ปิดมาแล้วเกิน N วัน" หรือยัง
+  // สำหรับปุ่ม "ล้างคำขอเก่าที่ปิดแล้ว" (ดู handleClearOldDataRequests_) — แม่นยำกว่าการเดาจาก last_message_at เฉยๆ
+  // เพราะบางทีก็ปิดเรื่องช้ากว่าข้อความสุดท้ายไปหลายวัน
+  ensureColumnHeader_(sh, 'closed_at');
 
   sh = getOrCreateSheet_(ss, SHEET_NAMES.DATA_REQUEST_MESSAGES);
   setHeadersIfEmpty_(sh, ['thread_id', 'timestamp', 'sender_username', 'sender_role', 'message_text']);
@@ -1668,6 +1672,12 @@ function handleRequest_(e) {
       case 'updateDataRequestStatus':
         result = withLock_(function () { return handleUpdateDataRequestStatus_(payload); });
         break;
+      case 'deleteDataRequestThreads':
+        result = withLock_(function () { return handleDeleteDataRequestThreads_(payload); });
+        break;
+      case 'clearOldDataRequests':
+        result = withLock_(function () { return handleClearOldDataRequests_(payload); });
+        break;
       default:
         result = { success: false, error: 'ไม่รู้จัก action: ' + payload.action };
     }
@@ -2650,6 +2660,9 @@ function handleReplyDataRequest_(p) {
   threadSh.getRange(thread.sheetRow, thread.idx.status + 1).setValue('open');
   threadSh.getRange(thread.sheetRow, thread.idx.lastMessageAt + 1).setValue(now);
   threadSh.getRange(thread.sheetRow, thread.idx.lastSenderRole + 1).setValue(p.role);
+  // เปิดกลับอัตโนมัติ = ไม่ได้ "ปิดแล้ว" อีกต่อไป เคลียร์ closed_at ทิ้งด้วย กันไม่ให้ปุ่ม "ล้างคำขอเก่าที่ปิดแล้ว" (คำนวณ
+  // จาก closed_at) เข้าใจผิดว่า thread นี้ยังปิดอยู่ตั้งแต่ครั้งก่อน ทั้งที่จริงๆ กลับมาเปิดคุยกันต่อแล้ว
+  if (thread.idx.closedAt !== -1) threadSh.getRange(thread.sheetRow, thread.idx.closedAt + 1).setValue('');
 
   logActivity_(p.username, p.role, 'DATA_REQUEST_REPLY', 'ตอบกลับคำขอ (thread: ' + p.threadId + ')');
   return { success: true };
@@ -2667,8 +2680,116 @@ function handleUpdateDataRequestStatus_(p) {
 
   const sh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
   sh.getRange(thread.sheetRow, thread.idx.status + 1).setValue(status);
+  // ปั๊ม/เคลียร์ closed_at คู่กับ status เสมอ — ปิด = จดเวลาปิดไว้ (ใช้คำนวณ "ปิดมาแล้วกี่วัน" ของปุ่มล้างคำขอเก่า)
+  // เปิดกลับ = เคลียร์ทิ้ง เพราะไม่ได้ "ปิดอยู่" แล้ว ไม่ควรถูกนับอายุต่อ
+  if (thread.idx.closedAt !== -1) {
+    sh.getRange(thread.sheetRow, thread.idx.closedAt + 1).setValue(status === 'closed' ? new Date() : '');
+  }
   logActivity_(p.requestingUsername, 'Super_Admin', 'DATA_REQUEST_STATUS', (status === 'closed' ? 'ปิด' : 'เปิด') + 'เรื่องคำขอ (thread: ' + p.threadId + ')');
   return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// (feature 2026-09-20) ลบคำขอ (thread) ที่ "ปิดแล้ว" เท่านั้น — ไม่มีทางลบ thread ที่ยังเปิดอยู่ได้เด็ดขาดไม่ว่าจะเรียก
+// ผ่านทางไหนก็ตาม (เช็คซ้ำที่ deleteDataRequestThreadsByIds_ อีกชั้นเสมอ ไม่เชื่อแค่ว่า frontend จะส่งมาแต่ thread ที่ปิดแล้ว)
+// รองรับ 2 รูปแบบการใช้งาน: ลบทีละรายการ/หลายรายการที่เลือกด้วย checkbox (handleDeleteDataRequestThreads_) และลบเป็นชุด
+// ตามอายุที่ปิดมาแล้วกี่วัน (handleClearOldDataRequests_) — ทั้งสองใช้ตรรกะลบร่วมกันจุดเดียวที่ deleteDataRequestThreadsByIds_
+// ---------------------------------------------------------------------------
+
+// ลบแถวใน DataRequests + DataRequestMessages ของ thread ที่ระบุ — เฉพาะ thread ที่ status === 'closed' เท่านั้น
+// (thread ที่ยังเปิดอยู่จะถูกข้ามไปเงียบๆ ใส่ไว้ใน skippedThreadIds ให้ผู้เรียกใช้ตัดสินใจว่าจะแจ้งผู้ใช้ยังไง)
+// ไม่เช็คสิทธิ์ในฟังก์ชันนี้เอง (ผู้เรียกใช้ต้องเช็ค isSuperAdmin_ ก่อนเสมอ) เพราะเป็นฟังก์ชันช่วยภายในไม่ได้ผูกกับ action ตรงๆ
+function deleteDataRequestThreadsByIds_(threadIds) {
+  const threadSh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  const threadData = threadSh.getDataRange().getValues();
+  const idx = buildDataRequestHeaderIndex_(threadData[0] || []);
+
+  const wantedSet = {};
+  threadIds.forEach(function (id) { wantedSet[id] = true; });
+
+  const deletedThreadIds = [];
+  const skippedThreadIds = [];
+  const rowsToDeleteDesc = []; // เก็บเลขแถว (1-based) ที่จะลบจริง เรียงจากมากไปน้อยกันปัญหาเลขแถวเลื่อนตอนลบทีละแถว
+
+  for (let i = 1; i < threadData.length; i++) {
+    const tid = threadData[i][idx.threadId];
+    if (!wantedSet[tid]) continue;
+    if (threadData[i][idx.status] === 'closed') {
+      deletedThreadIds.push(tid);
+      rowsToDeleteDesc.push(i + 1);
+    } else {
+      skippedThreadIds.push(tid);
+    }
+  }
+
+  rowsToDeleteDesc.sort(function (a, b) { return b - a; }).forEach(function (rowNum) {
+    threadSh.deleteRow(rowNum);
+  });
+
+  if (deletedThreadIds.length) {
+    const deletedSet = {};
+    deletedThreadIds.forEach(function (id) { deletedSet[id] = true; });
+    const msgSh = getSheet_(SHEET_NAMES.DATA_REQUEST_MESSAGES);
+    const msgData = msgSh.getDataRange().getValues();
+    const msgThreadCol = (msgData[0] || []).indexOf('thread_id');
+    const msgRowsToDeleteDesc = [];
+    for (let i = 1; i < msgData.length; i++) {
+      if (deletedSet[msgData[i][msgThreadCol]]) msgRowsToDeleteDesc.push(i + 1);
+    }
+    msgRowsToDeleteDesc.sort(function (a, b) { return b - a; }).forEach(function (rowNum) {
+      msgSh.deleteRow(rowNum);
+    });
+  }
+
+  return { deletedThreadIds: deletedThreadIds, skippedThreadIds: skippedThreadIds };
+}
+
+// ลบ thread ทีละรายการ/หลายรายการตามที่เลือกด้วย checkbox — เฉพาะ Super_Admin เท่านั้น
+function handleDeleteDataRequestThreads_(p) {
+  if (!isSuperAdmin_(p.requestingUsername)) {
+    return { success: false, error: 'ไม่มีสิทธิ์เข้าถึงส่วนนี้ (เฉพาะ Super_Admin เท่านั้น)' };
+  }
+  const threadIds = Array.isArray(p.threadIds) ? p.threadIds.filter(Boolean) : [];
+  if (!threadIds.length) return { success: false, error: 'กรุณาเลือกคำขอที่ต้องการลบอย่างน้อย 1 รายการ' };
+
+  const result = deleteDataRequestThreadsByIds_(threadIds);
+  logActivity_(p.requestingUsername, 'Super_Admin', 'DATA_REQUEST_DELETE',
+    'ลบคำขอ ' + result.deletedThreadIds.length + ' รายการ' +
+    (result.skippedThreadIds.length ? ' (ข้าม ' + result.skippedThreadIds.length + ' รายการเพราะยังไม่ปิด)' : ''));
+  return { success: true, deletedCount: result.deletedThreadIds.length, skippedThreadIds: result.skippedThreadIds };
+}
+
+// ล้างคำขอเก่าที่ "ปิดแล้ว" เกิน N วัน ทั้งหมดในครั้งเดียว — เฉพาะ Super_Admin เท่านั้น (กดเองทุกครั้ง ไม่มีการตั้งเวลาลบอัตโนมัติ
+// เบื้องหลัง เพื่อไม่ให้มีอะไรถูกลบไปโดยไม่มีใครตั้งใจกดเลย)
+function handleClearOldDataRequests_(p) {
+  if (!isSuperAdmin_(p.requestingUsername)) {
+    return { success: false, error: 'ไม่มีสิทธิ์เข้าถึงส่วนนี้ (เฉพาะ Super_Admin เท่านั้น)' };
+  }
+  const olderThanDays = Number(p.olderThanDays);
+  if (!olderThanDays || olderThanDays <= 0) {
+    return { success: false, error: 'กรุณาระบุจำนวนวันที่ถูกต้อง (มากกว่า 0)' };
+  }
+
+  const sh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return { success: true, deletedCount: 0 };
+  const idx = buildDataRequestHeaderIndex_(data[0]);
+  const cutoffMs = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
+
+  const targetThreadIds = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idx.status] !== 'closed') continue;
+    const closedAtVal = idx.closedAt !== -1 ? data[i][idx.closedAt] : '';
+    if (!closedAtVal) continue; // ไม่มีเวลาปิดบันทึกไว้ (เช่น ปิดไว้ตั้งแต่ก่อนอัปเดตฟีเจอร์นี้) ข้ามไปก่อน ไม่เดาสุ่มลบ
+    if (new Date(closedAtVal).getTime() <= cutoffMs) targetThreadIds.push(data[i][idx.threadId]);
+  }
+
+  if (!targetThreadIds.length) return { success: true, deletedCount: 0 };
+
+  const result = deleteDataRequestThreadsByIds_(targetThreadIds);
+  logActivity_(p.requestingUsername, 'Super_Admin', 'DATA_REQUEST_CLEAR_OLD',
+    'ล้างคำขอเก่าที่ปิดแล้วเกิน ' + olderThanDays + ' วัน จำนวน ' + result.deletedThreadIds.length + ' รายการ');
+  return { success: true, deletedCount: result.deletedThreadIds.length };
 }
 
 // ---- helper ร่วมของระบบ "ติดต่อผู้ดูแลระบบ" (ไม่ได้ใช้ที่อื่นนอกจากฟังก์ชันชุดนี้) ----
@@ -2690,7 +2811,8 @@ function buildDataRequestHeaderIndex_(header) {
     // ฝั่งแอดมินใช้ค่าเดียวร่วมกันทั้งทีม (ไม่แยกเป็นรายบุคคล) ตามแนวทางเดียวกับ badge อื่นๆ ในระบบนี้ที่ถือว่า Super_Admin
     // เป็น "กลุ่มเดียว" ไม่ใช่รายคน ส่วนฝั่งผู้ใช้มีเจ้าของ thread แค่คนเดียวอยู่แล้วจึงไม่มีความกำกวม
     lastReadByAdminAt: header.indexOf('last_read_by_admin_at'),
-    lastReadByUserAt: header.indexOf('last_read_by_user_at')
+    lastReadByUserAt: header.indexOf('last_read_by_user_at'),
+    closedAt: header.indexOf('closed_at')
   };
 }
 
@@ -2709,7 +2831,8 @@ function rowToDataRequestThreadObj_(row, idx) {
     lastMessageAt: row[idx.lastMessageAt],
     lastSenderRole: row[idx.lastSenderRole],
     lastReadByAdminAt: idx.lastReadByAdminAt !== -1 ? row[idx.lastReadByAdminAt] : '',
-    lastReadByUserAt: idx.lastReadByUserAt !== -1 ? row[idx.lastReadByUserAt] : ''
+    lastReadByUserAt: idx.lastReadByUserAt !== -1 ? row[idx.lastReadByUserAt] : '',
+    closedAt: idx.closedAt !== -1 ? row[idx.closedAt] : ''
   };
 }
 
