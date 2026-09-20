@@ -30,7 +30,15 @@ const SHEET_NAMES = {
   PROMPTS: 'SavedPrompts',       // เฉพาะ prompt ที่ผู้ใช้ตั้งชื่อเองแล้วกด "บันทึก" ไว้ใช้ซ้ำ (ดึงกลับมาใช้บนหน้าเว็บได้)
   PROMPT_LOGS: 'GeneratedPromptLogs', // prompt ทุกครั้งที่กด Generate โดยยังไม่ได้ตั้งใจบันทึกไว้ใช้ซ้ำ (เก็บไว้ตรวจสอบย้อนหลังอย่างเดียว)
   SCHEMA: 'ColumnSchemaConfig',
-  QUALITY: 'QualityScores'
+  QUALITY: 'QualityScores',
+  // (feature 2026-09-19) ชีตกฎของ Rule-Based Mode แบบไม่ใช้ AI — ผู้ดูแลระบบเขียนกฎการสุ่มแต่ละคอลัมน์ของแต่ละตารางไว้ล่วงหน้าที่นี่
+  // ดูรายละเอียดโครงสร้างคอลัมน์/ตัวอย่าง param_json ที่คอมเมนต์ของ getRuleTemplateForColumns_() ใน RuleDispatcher.gs
+  RULE_TEMPLATES: 'RuleTemplates',
+  // (feature 2026-09-19) ระบบ "ติดต่อผู้ดูแลระบบ" — ให้ role อื่นที่ไม่ใช่ Super_Admin ขอเพิ่มข้อมูลใน RuleTemplates
+  // (หรือเรื่องอื่นๆ) ผ่านหน้าเว็บได้ โดยไม่ต้องออกไปช่องทางอื่น รองรับสนทนาสองทาง (ตอบไปตอบมาได้) เก็บเป็น 2 ชีต:
+  // DATA_REQUESTS = หัวเรื่อง/สถานะของแต่ละ thread, DATA_REQUEST_MESSAGES = ข้อความทุกข้อความในแต่ละ thread
+  DATA_REQUESTS: 'DataRequests',
+  DATA_REQUEST_MESSAGES: 'DataRequestMessages'
 };
 
 // โมเดล Gemini ที่จะเรียกใช้ — ล็อกรุ่นตายตัวไว้ที่ "gemini-3.6-flash" (Stable รุ่นก่อนหน้ารุ่นล่าสุด)
@@ -97,6 +105,29 @@ function setupSheet() {
   // ออกแบบเป็นตารางแบนราบ คอลัมน์คงที่เสมอ (ไม่ผูกกับชนิดข้อมูลที่สร้าง) เพื่อให้เอาไปทำรายงาน/สรุปสถิติย้อนหลังได้ง่าย
   sh = getOrCreateSheet_(ss, SHEET_NAMES.QUALITY);
   setHeadersIfEmpty_(sh, ['timestamp', 'username', 'role', 'data_type', 'table_name', 'dialect', 'rows_requested', 'rows_actual', 'condition_match_percent', 'reliability_percent', 'summary']);
+
+  // (feature 2026-09-19, แก้ไขให้ match ด้วย column_name แทน table_name) ชีตกฎ Rule-Based Mode (โค้ดล้วน ไม่มี AI)
+  // 1 แถว = 1 คอลัมน์ — เว้น table_name ว่างไว้ = กฎ "กลาง" ใช้ได้กับทุกตารางที่มีคอลัมน์ชื่อนี้ (ไม่ต้องเขียนซ้ำทุกตาราง)
+  // ใส่ table_name ด้วย = กฎ "เฉพาะตารางนั้น" (override) ใช้แทนกฎกลางเมื่อชื่อคอลัมน์เดียวกันมีความหมายไม่เหมือนกันข้ามตาราง
+  // ดูตัวอย่าง param_json ของแต่ละ generator ที่คอมเมนต์ของ getRuleTemplateForColumns_() ใน RuleDispatcher.gs
+  sh = getOrCreateSheet_(ss, SHEET_NAMES.RULE_TEMPLATES);
+  setHeadersIfEmpty_(sh, ['table_name', 'column_name', 'generator', 'param_json', 'notes']);
+
+  // (feature 2026-09-19) ระบบ "ติดต่อผู้ดูแลระบบ" — thread เดียวมีได้หลายข้อความ (ตอบไปตอบมาได้) แยกเป็น 2 ชีต
+  // status: 'open' (ยังคุยอยู่/รอตอบ) หรือ 'closed' (ปิดเรื่องแล้ว โดย Super_Admin เท่านั้นที่ปิดได้ — แต่ตอบข้อความใหม่จะเปิดกลับให้อัตโนมัติ)
+  // last_sender_role ใช้ระบุว่า "ฝ่ายไหนเป็นคนพูดล่าสุด" ผสมกับคอลัมน์ last_read_by_admin_at/last_read_by_user_at (เพิ่มทีหลัง
+  // ด้านล่าง) เพื่อคำนวณว่า thread นี้ "ยังไม่อ่าน" จากมุมมองของแต่ละฝ่ายหรือไม่ (ดู isDataRequestUnreadFor_) — ยังคงนับที่
+  // ระดับ thread ไม่ใช่ทีละข้อความ (ไม่ซับซ้อนเกินจำเป็น) แค่เพิ่ม "เวลาอ่านล่าสุด" เข้ามาแทนการเดาจาก last_sender_role อย่างเดียว
+  sh = getOrCreateSheet_(ss, SHEET_NAMES.DATA_REQUESTS);
+  setHeadersIfEmpty_(sh, ['thread_id', 'created_at', 'created_by_username', 'created_by_role', 'request_type', 'subject', 'table_name', 'columns_needed', 'reason', 'status', 'last_message_at', 'last_sender_role']);
+  // (feature 2026-09-20) ระบบ "อ่านแล้ว" — เก็บเวลาล่าสุดที่ฝั่งแอดมิน/ฝั่งผู้สร้างคำขอเปิดเข้ามาดู thread นี้ครั้งล่าสุด
+  // ใช้ ensureColumnHeader_ (ไม่ใช่ setHeadersIfEmpty_) เพราะชีตนี้อาจถูกสร้างไปแล้วตั้งแต่ก่อนมีฟีเจอร์นี้ (setHeadersIfEmpty_
+  // จะข้ามไปเฉยๆ ถ้าชีตมีหัวตารางอยู่แล้ว) ต้องเพิ่มคอลัมน์ใหม่ต่อท้ายให้ชีตเก่าด้วยแทน
+  ensureColumnHeader_(sh, 'last_read_by_admin_at');
+  ensureColumnHeader_(sh, 'last_read_by_user_at');
+
+  sh = getOrCreateSheet_(ss, SHEET_NAMES.DATA_REQUEST_MESSAGES);
+  setHeadersIfEmpty_(sh, ['thread_id', 'timestamp', 'sender_username', 'sender_role', 'message_text']);
 
   SpreadsheetApp.getUi().alert('ตั้งค่าโครงสร้าง Sheet เรียบร้อยแล้ว ✅\n\nUser เริ่มต้น: Admin123 / SecurePassword!1\n\nอย่าลืมตั้งค่า GEMINI_API_KEY ใน Script Properties ก่อนใช้งานจริง (ขอฟรีได้ที่ https://aistudio.google.com/apikey)');
 }
@@ -717,7 +748,7 @@ function checkDeployReadiness() {
     : '❌ ยังไม่ได้ตั้งค่า GEMINI_API_KEY (ไปที่ Project Settings → Script Properties ใน Apps Script editor)');
 
   // 2. มีชีตหลักครบทุกแท็บที่จำเป็นไหม
-  const requiredSheets = [SHEET_NAMES.USERS, SHEET_NAMES.LOGS, SHEET_NAMES.DATASETS, SHEET_NAMES.PROMPTS, SHEET_NAMES.PROMPT_LOGS, SHEET_NAMES.SCHEMA, SHEET_NAMES.QUALITY];
+  const requiredSheets = [SHEET_NAMES.USERS, SHEET_NAMES.LOGS, SHEET_NAMES.DATASETS, SHEET_NAMES.PROMPTS, SHEET_NAMES.PROMPT_LOGS, SHEET_NAMES.SCHEMA, SHEET_NAMES.QUALITY, SHEET_NAMES.RULE_TEMPLATES, SHEET_NAMES.DATA_REQUESTS, SHEET_NAMES.DATA_REQUEST_MESSAGES];
   const missingSheets = requiredSheets.filter(function (name) { return !ss.getSheetByName(name); });
   lines.push(missingSheets.length
     ? '❌ ยังไม่มีชีตต่อไปนี้: ' + missingSheets.join(', ') + ' (รันฟังก์ชัน setupSheet() ก่อน)'
@@ -1614,6 +1645,29 @@ function handleRequest_(e) {
       case 'ping':
         result = { success: true, message: 'pong', version: BACKEND_VERSION };
         break;
+      case 'getAdminSheetUrl':
+        result = handleGetAdminSheetUrl_(payload);
+        break;
+      case 'createDataRequest':
+        result = withLock_(function () { return handleCreateDataRequest_(payload); });
+        break;
+      case 'getMyDataRequestThreads':
+        result = handleGetMyDataRequestThreads_(payload);
+        break;
+      case 'getAllDataRequestThreads':
+        result = handleGetAllDataRequestThreads_(payload);
+        break;
+      case 'getDataRequestMessages':
+        // (feature 2026-09-20) action นี้เขียนชีต (ปั๊มเวลาอ่านล่าสุด) เป็นผลข้างเคียงด้วยแล้ว จึงต้องครอบด้วย withLock_
+        // เหมือน action อื่นที่แก้ไขแถวตามตำแหน่ง index กันปัญหา race condition ถ้ามีคนเปิดอ่าน/ตอบพร้อมกันหลายคน
+        result = withLock_(function () { return handleGetDataRequestMessages_(payload); });
+        break;
+      case 'replyDataRequest':
+        result = withLock_(function () { return handleReplyDataRequest_(payload); });
+        break;
+      case 'updateDataRequestStatus':
+        result = withLock_(function () { return handleUpdateDataRequestStatus_(payload); });
+        break;
       default:
         result = { success: false, error: 'ไม่รู้จัก action: ' + payload.action };
     }
@@ -2405,6 +2459,322 @@ function isPrimarySuperAdmin_(username) {
 }
 
 // รายชื่อผู้ใช้งานทั้งหมด (ไม่ส่ง salt/password_hash กลับไปเด็ดขาด) ให้เฉพาะ Super_Admin เรียกดูได้
+// (feature 2026-09-19) คืนลิงก์ Google Sheet ต้นทางของระบบ (สเปรดชีตเดียวกับที่ Code.gs นี้ผูกอยู่) ให้เฉพาะ
+// Super_Admin เท่านั้น — ใช้ตอนต้องการไปแก้ไข/เพิ่มกฎในชีต RuleTemplates (หรือชีตอื่น) โดยตรงจากหน้าเว็บ ไม่ต้องมโนหา
+// URL เอง หรือขอลิงก์จากคนอื่น เช็คสิทธิ์จากฐานข้อมูลจริงเสมอผ่าน isSuperAdmin_ ไม่เชื่อ role ที่ส่งมาจาก client ตรงๆ
+// (ปลอมแปลงได้ง่ายเพราะเป็นแค่ payload ธรรมดา) เหมือน action อื่นๆ ที่สงวนไว้เฉพาะ Super_Admin ในระบบนี้ทุกจุด —
+// การเข้าถึงตัวสเปรดชีตจริงยังคงขึ้นกับสิทธิ์แชร์ไฟล์ของ Google เองอีกชั้นหนึ่งเสมอ (คนที่ไม่มีสิทธิ์แชร์ไฟล์
+// เอาลิงก์นี้ไปเปิดก็ยังเข้าไม่ได้อยู่ดี ฟังก์ชันนี้แค่กันไม่ให้ role อื่นเห็นลิงก์นี้จากหน้าเว็บโดยไม่จำเป็น)
+function handleGetAdminSheetUrl_(p) {
+  if (!isSuperAdmin_(p.requestingUsername)) {
+    return { success: false, error: 'ไม่มีสิทธิ์เข้าถึงส่วนนี้ (เฉพาะ Super_Admin เท่านั้น)' };
+  }
+  return { success: true, sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl() };
+}
+
+// ---------------------------------------------------------------------------
+// (feature 2026-09-19) ระบบ "ติดต่อผู้ดูแลระบบ" — ให้ role อื่นที่ไม่ใช่ Super_Admin ขอเพิ่มข้อมูลใน RuleTemplates
+// (หรือเรื่องอื่นๆ) ผ่านหน้าเว็บได้โดยตรง แทนที่จะต้องออกไปช่องทางอื่น รองรับสนทนาสองทาง (ตอบไปตอบมาได้จริง ไม่ใช่แค่
+// ส่งคำขอครั้งเดียวจบ) เก็บเป็น 2 ชีต: DataRequests (หัวเรื่อง/สถานะของแต่ละ thread) และ DataRequestMessages
+// (ข้อความทุกข้อความในทุก thread) — สิทธิ์การมองเห็น: Super_Admin เห็นทุก thread, ผู้ใช้ทั่วไปเห็นเฉพาะ thread ที่
+// ตัวเองสร้างเท่านั้น เช็คจากฐานข้อมูลจริงทุกจุด (isSuperAdmin_ / เทียบ created_by_username) ไม่เชื่อ role ที่ส่งมาจาก
+// client ตรงๆ เหมือนจุดอื่นๆ ในระบบนี้ทุกที่
+// ---------------------------------------------------------------------------
+
+// สร้าง thread ใหม่ + ข้อความแรก — เปิดให้ role อื่นที่ไม่ใช่ Super_Admin ใช้ได้เท่านั้น (Super_Admin เป็นผู้ดูแลระบบเองอยู่แล้ว
+// ไม่จำเป็นต้อง "ขอข้อมูล" ถึงตัวเอง — ฝั่งหน้าเว็บซ่อนปุ่ม "สร้างคำขอใหม่" ไว้แล้วสำหรับ Super_Admin แต่เช็คซ้ำที่นี่ด้วยเสมอ
+// กันกรณียิง request ตรงมาโดยไม่ผ่านหน้าเว็บ)
+// request_type: 'form' (กรอกฟอร์มโครงสร้าง table_name/columns_needed/reason ตามที่ผู้ใช้เลือก) หรือ 'chat' (แชทอิสระ)
+// backend เป็นคนประกอบ "ข้อความแรก" ให้เองเสมอจากฟิลด์ที่ส่งมา (ไม่เชื่อข้อความที่ frontend ประกอบมาให้ตรงๆ) เพื่อการันตี
+// ว่ารูปแบบข้อความในชีต DataRequestMessages จะสม่ำเสมอเหมือนกันทุก thread ไม่ว่าจะมาจากฟอร์มไหนก็ตาม
+function handleCreateDataRequest_(p) {
+  if (!p.username || !p.role) {
+    return { success: false, error: 'ข้อมูลคำขอไม่ครบถ้วน (ต้องมี username, role)' };
+  }
+  if (isSuperAdmin_(p.username)) {
+    return { success: false, error: 'บัญชี Super_Admin เป็นผู้ดูแลระบบอยู่แล้ว ไม่สามารถสร้างคำขอถึงผู้ดูแลระบบได้' };
+  }
+  const requestType = (p.requestType === 'form') ? 'form' : 'chat';
+
+  let subject, messageText;
+  if (requestType === 'form') {
+    const tableName = String(p.tableName || '').trim();
+    const columnsNeeded = String(p.columnsNeeded || '').trim();
+    const reason = String(p.reason || '').trim();
+    if (!tableName || !columnsNeeded) {
+      return { success: false, error: 'กรุณาระบุชื่อตารางและคอลัมน์ที่ต้องการอย่างน้อย' };
+    }
+    subject = 'ขอเพิ่มข้อมูลตาราง: ' + tableName;
+    messageText = 'ขอเพิ่มข้อมูลในชีต RuleTemplates\nชื่อตาราง: ' + tableName +
+      '\nคอลัมน์ที่ต้องการ: ' + columnsNeeded +
+      (reason ? '\nเหตุผล/รายละเอียดเพิ่มเติม: ' + reason : '');
+  } else {
+    messageText = String(p.message || '').trim();
+    if (!messageText) {
+      return { success: false, error: 'กรุณาพิมพ์ข้อความ' };
+    }
+    subject = String(p.subject || '').trim() || messageText.slice(0, 60);
+  }
+
+  const threadId = 'REQ-' + Utilities.getUuid().slice(0, 8).toUpperCase();
+  const now = new Date();
+
+  const threadSh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  threadSh.appendRow([threadId, now, p.username, p.role, requestType, subject,
+    requestType === 'form' ? String(p.tableName || '').trim() : '',
+    requestType === 'form' ? String(p.columnsNeeded || '').trim() : '',
+    requestType === 'form' ? String(p.reason || '').trim() : '',
+    'open', now, p.role]);
+
+  const msgSh = getSheet_(SHEET_NAMES.DATA_REQUEST_MESSAGES);
+  msgSh.appendRow([threadId, now, p.username, p.role, messageText]);
+
+  logActivity_(p.username, p.role, 'DATA_REQUEST_CREATE', 'สร้างคำขอ "' + subject + '" (thread: ' + threadId + ')');
+
+  return { success: true, threadId: threadId };
+}
+
+// คืนรายชื่อ thread ทั้งหมดที่ "ผู้ใช้คนนี้เอง" เป็นคนสร้าง — ไม่ใช่ Super_Admin ก็เห็นได้เฉพาะของตัวเองเท่านั้น
+function handleGetMyDataRequestThreads_(p) {
+  if (!p.username) return { success: false, error: 'ไม่พบ username' };
+  const sh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return { success: true, threads: [] };
+  const header = data[0];
+  const idx = buildDataRequestHeaderIndex_(header);
+  const normUsername = normalizeUsername_(p.username);
+  const threads = [];
+  for (let i = 1; i < data.length; i++) {
+    if (normalizeUsername_(data[i][idx.createdByUsername]) === normUsername) {
+      const obj = rowToDataRequestThreadObj_(data[i], idx);
+      obj.unread = isDataRequestUnreadFor_(obj, false); // มุมมองฝั่งผู้ใช้ (ไม่ใช่แอดมิน)
+      threads.push(obj);
+    }
+  }
+  threads.sort(function (a, b) { return new Date(b.lastMessageAt) - new Date(a.lastMessageAt); });
+  return { success: true, threads: threads };
+}
+
+// คืนรายชื่อ thread "ทั้งหมด" ในระบบ — เฉพาะ Super_Admin เท่านั้น (เช็คจากฐานข้อมูลจริงเสมอ)
+function handleGetAllDataRequestThreads_(p) {
+  if (!isSuperAdmin_(p.requestingUsername)) {
+    return { success: false, error: 'ไม่มีสิทธิ์เข้าถึงส่วนนี้ (เฉพาะ Super_Admin เท่านั้น)' };
+  }
+  const sh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return { success: true, threads: [] };
+  const header = data[0];
+  const idx = buildDataRequestHeaderIndex_(header);
+  const threads = [];
+  for (let i = 1; i < data.length; i++) {
+    const obj = rowToDataRequestThreadObj_(data[i], idx);
+    obj.unread = isDataRequestUnreadFor_(obj, true); // มุมมองฝั่งแอดมิน
+    threads.push(obj);
+  }
+  threads.sort(function (a, b) { return new Date(b.lastMessageAt) - new Date(a.lastMessageAt); });
+  return { success: true, threads: threads };
+}
+
+// ดึงข้อความทั้งหมดของ thread หนึ่ง — ต้องเป็นเจ้าของ thread เอง หรือเป็น Super_Admin เท่านั้น ถึงจะเห็นได้
+// (feature 2026-09-20) ทุกครั้งที่เปิดเข้ามาดู ถือว่า "อ่านแล้ว" ทันที — ปั๊มเวลาอ่านล่าสุดของฝั่งที่เข้ามาดู (แอดมิน/เจ้าของ
+// คำขอ) ลงชีต DataRequests เพื่อให้ badge แจ้งเตือนและ tag "รอตอบกลับ" ที่หน้ารายการหายไปทันทีที่กลับออกไป ไม่ต้องรอให้มี
+// การกระทำอื่นมากระตุ้น — action นี้จึงถูกเปลี่ยนให้ครอบด้วย withLock_ ในตัว dispatcher แล้ว (ดู handleRequest_) เพราะมีการ
+// เขียนชีตเป็นผลข้างเคียงจากที่เดิมเป็น action อ่านอย่างเดียว
+function handleGetDataRequestMessages_(p) {
+  const thread = findDataRequestThreadRow_(p.threadId);
+  if (!thread) return { success: false, error: 'ไม่พบคำขอนี้ (thread_id ไม่ถูกต้อง)' };
+
+  const isOwner = normalizeUsername_(thread.obj.createdByUsername) === normalizeUsername_(p.username);
+  const viewerIsAdmin = isSuperAdmin_(p.username);
+  if (!isOwner && !viewerIsAdmin) {
+    return { success: false, error: 'ไม่มีสิทธิ์เข้าถึงคำขอนี้' };
+  }
+
+  const nowRead = new Date();
+  const threadSh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  if (viewerIsAdmin) {
+    threadSh.getRange(thread.sheetRow, thread.idx.lastReadByAdminAt + 1).setValue(nowRead);
+    thread.obj.lastReadByAdminAt = nowRead;
+  } else {
+    threadSh.getRange(thread.sheetRow, thread.idx.lastReadByUserAt + 1).setValue(nowRead);
+    thread.obj.lastReadByUserAt = nowRead;
+  }
+
+  const sh = getSheet_(SHEET_NAMES.DATA_REQUEST_MESSAGES);
+  const data = sh.getDataRange().getValues();
+  const messages = [];
+  if (data.length >= 2) {
+    const header = data[0];
+    const idx = {
+      threadId: header.indexOf('thread_id'),
+      timestamp: header.indexOf('timestamp'),
+      senderUsername: header.indexOf('sender_username'),
+      senderRole: header.indexOf('sender_role'),
+      messageText: header.indexOf('message_text')
+    };
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][idx.threadId] === p.threadId) {
+        messages.push({
+          timestamp: data[i][idx.timestamp],
+          senderUsername: data[i][idx.senderUsername],
+          senderRole: data[i][idx.senderRole],
+          messageText: data[i][idx.messageText]
+        });
+      }
+    }
+  }
+  messages.sort(function (a, b) { return new Date(a.timestamp) - new Date(b.timestamp); });
+  return { success: true, thread: thread.obj, messages: messages };
+}
+
+// ตอบกลับใน thread — เจ้าของ thread หรือ Super_Admin เท่านั้น (สิทธิ์เดียวกับ handleGetDataRequestMessages_)
+// ตอบข้อความใหม่จะเปิด thread กลับเป็น 'open' อัตโนมัติเสมอ แม้ก่อนหน้านี้ Super_Admin จะเคยกดปิดเรื่องไปแล้วก็ตาม
+// (พฤติกรรมเดียวกับระบบตั๋วซัพพอร์ตทั่วไป — ตอบกลับ = สนใจเรื่องนี้ต่อ ไม่ควรถูกซ่อนไว้ในสถานะปิดอีกต่อไป)
+function handleReplyDataRequest_(p) {
+  const thread = findDataRequestThreadRow_(p.threadId);
+  if (!thread) return { success: false, error: 'ไม่พบคำขอนี้ (thread_id ไม่ถูกต้อง)' };
+
+  const isOwner = normalizeUsername_(thread.obj.createdByUsername) === normalizeUsername_(p.username);
+  if (!isOwner && !isSuperAdmin_(p.username)) {
+    return { success: false, error: 'ไม่มีสิทธิ์ตอบกลับคำขอนี้' };
+  }
+
+  const messageText = String(p.message || '').trim();
+  if (!messageText) return { success: false, error: 'กรุณาพิมพ์ข้อความ' };
+
+  const now = new Date();
+  const msgSh = getSheet_(SHEET_NAMES.DATA_REQUEST_MESSAGES);
+  msgSh.appendRow([p.threadId, now, p.username, p.role, messageText]);
+
+  const threadSh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  threadSh.getRange(thread.sheetRow, thread.idx.status + 1).setValue('open');
+  threadSh.getRange(thread.sheetRow, thread.idx.lastMessageAt + 1).setValue(now);
+  threadSh.getRange(thread.sheetRow, thread.idx.lastSenderRole + 1).setValue(p.role);
+
+  logActivity_(p.username, p.role, 'DATA_REQUEST_REPLY', 'ตอบกลับคำขอ (thread: ' + p.threadId + ')');
+  return { success: true };
+}
+
+// เปิด/ปิดเรื่อง — เฉพาะ Super_Admin เท่านั้น (ผู้ใช้ทั่วไปตอบข้อความใหม่เพื่อ "เปิดกลับ" ได้เองอัตโนมัติอยู่แล้ว
+// ผ่าน handleReplyDataRequest_ ด้านบน แต่ "ปิดเรื่อง" ตรงๆ ให้เป็นสิทธิ์ของ Super_Admin เท่านั้นที่ตัดสินใจได้)
+function handleUpdateDataRequestStatus_(p) {
+  if (!isSuperAdmin_(p.requestingUsername)) {
+    return { success: false, error: 'ไม่มีสิทธิ์เข้าถึงส่วนนี้ (เฉพาะ Super_Admin เท่านั้น)' };
+  }
+  const status = (p.status === 'closed') ? 'closed' : 'open';
+  const thread = findDataRequestThreadRow_(p.threadId);
+  if (!thread) return { success: false, error: 'ไม่พบคำขอนี้ (thread_id ไม่ถูกต้อง)' };
+
+  const sh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  sh.getRange(thread.sheetRow, thread.idx.status + 1).setValue(status);
+  logActivity_(p.requestingUsername, 'Super_Admin', 'DATA_REQUEST_STATUS', (status === 'closed' ? 'ปิด' : 'เปิด') + 'เรื่องคำขอ (thread: ' + p.threadId + ')');
+  return { success: true };
+}
+
+// ---- helper ร่วมของระบบ "ติดต่อผู้ดูแลระบบ" (ไม่ได้ใช้ที่อื่นนอกจากฟังก์ชันชุดนี้) ----
+function buildDataRequestHeaderIndex_(header) {
+  return {
+    threadId: header.indexOf('thread_id'),
+    createdAt: header.indexOf('created_at'),
+    createdByUsername: header.indexOf('created_by_username'),
+    createdByRole: header.indexOf('created_by_role'),
+    requestType: header.indexOf('request_type'),
+    subject: header.indexOf('subject'),
+    tableName: header.indexOf('table_name'),
+    columnsNeeded: header.indexOf('columns_needed'),
+    reason: header.indexOf('reason'),
+    status: header.indexOf('status'),
+    lastMessageAt: header.indexOf('last_message_at'),
+    lastSenderRole: header.indexOf('last_sender_role'),
+    // (feature 2026-09-20) ระบบ "อ่านแล้ว" — เก็บเวลาล่าสุดที่ฝั่งแอดมิน/ฝั่งผู้สร้างคำขอ "เปิดเข้ามาดู" thread นี้ครั้งล่าสุด
+    // ฝั่งแอดมินใช้ค่าเดียวร่วมกันทั้งทีม (ไม่แยกเป็นรายบุคคล) ตามแนวทางเดียวกับ badge อื่นๆ ในระบบนี้ที่ถือว่า Super_Admin
+    // เป็น "กลุ่มเดียว" ไม่ใช่รายคน ส่วนฝั่งผู้ใช้มีเจ้าของ thread แค่คนเดียวอยู่แล้วจึงไม่มีความกำกวม
+    lastReadByAdminAt: header.indexOf('last_read_by_admin_at'),
+    lastReadByUserAt: header.indexOf('last_read_by_user_at')
+  };
+}
+
+function rowToDataRequestThreadObj_(row, idx) {
+  return {
+    threadId: row[idx.threadId],
+    createdAt: row[idx.createdAt],
+    createdByUsername: row[idx.createdByUsername],
+    createdByRole: row[idx.createdByRole],
+    requestType: row[idx.requestType],
+    subject: row[idx.subject],
+    tableName: row[idx.tableName],
+    columnsNeeded: row[idx.columnsNeeded],
+    reason: row[idx.reason],
+    status: row[idx.status],
+    lastMessageAt: row[idx.lastMessageAt],
+    lastSenderRole: row[idx.lastSenderRole],
+    lastReadByAdminAt: idx.lastReadByAdminAt !== -1 ? row[idx.lastReadByAdminAt] : '',
+    lastReadByUserAt: idx.lastReadByUserAt !== -1 ? row[idx.lastReadByUserAt] : ''
+  };
+}
+
+// เช็คว่า thread นี้ "ยังไม่อ่าน" จากมุมมองของผู้ดู (isAdmin = true คือฝั่งแอดมิน, false คือฝั่งเจ้าของคำขอ) หรือไม่
+// เงื่อนไข: (1) thread ต้องยังเปิดอยู่ (2) ข้อความล่าสุดต้องมาจาก "อีกฝ่าย" ไม่ใช่ตัวเอง (คนที่พิมพ์เองไม่นับว่าต้องมาอ่าน)
+// (3) ยังไม่เคยเปิดอ่านเลย หรือเปิดอ่านครั้งล่าสุดเป็นเวลา "ก่อน" ข้อความล่าสุดถูกส่ง (มีข้อความใหม่มาหลังจากอ่านครั้งก่อน)
+function isDataRequestUnreadFor_(t, isAdmin) {
+  if (t.status !== 'open') return false;
+  const lastReadAt = isAdmin ? t.lastReadByAdminAt : t.lastReadByUserAt;
+  if (isAdmin) {
+    if (t.lastSenderRole === 'Super_Admin') return false;
+  } else {
+    if (t.lastSenderRole !== 'Super_Admin') return false;
+  }
+  if (!lastReadAt) return true;
+  return new Date(lastReadAt).getTime() < new Date(t.lastMessageAt).getTime();
+}
+
+// หา thread ตาม thread_id คืน { sheetRow (1-based รวมหัวตาราง), idx, obj } หรือ null ถ้าไม่เจอ
+function findDataRequestThreadRow_(threadId) {
+  if (!threadId) return null;
+  const sh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return null;
+  const header = data[0];
+  const idx = buildDataRequestHeaderIndex_(header);
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idx.threadId] === threadId) {
+      return { sheetRow: i + 1, idx: idx, obj: rowToDataRequestThreadObj_(data[i], idx) };
+    }
+  }
+  return null;
+}
+
+// นับจำนวน thread ที่ "ยังไม่อ่าน" จากมุมมองของแอดมิน — ใช้ทำ badge (ใช้ isDataRequestUnreadFor_ ตัวเดียวกับที่ใช้ตอนแสดงรายการ
+// เพื่อให้ตัวเลขบน badge กับ tag "รอตอบกลับ" ที่การ์ดแต่ละอันตรงกันเป๊ะเสมอ ไม่มีจุดไหนคำนวณเงื่อนไขซ้ำซ้อนกันคนละแบบ)
+function countDataRequestPendingForAdmin_() {
+  const sh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return 0;
+  const header = data[0];
+  const idx = buildDataRequestHeaderIndex_(header);
+  let count = 0;
+  for (let i = 1; i < data.length; i++) {
+    if (isDataRequestUnreadFor_(rowToDataRequestThreadObj_(data[i], idx), true)) count++;
+  }
+  return count;
+}
+
+// นับจำนวน thread ของผู้ใช้คนนี้ที่ "ยังไม่อ่าน" (ตอบกลับมาแล้วแต่เจ้าของยังไม่เปิดเข้ามาดู) — ใช้ทำ badge
+function countDataRequestPendingForUser_(username) {
+  const normUsername = normalizeUsername_(username);
+  const sh = getSheet_(SHEET_NAMES.DATA_REQUESTS);
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return 0;
+  const header = data[0];
+  const idx = buildDataRequestHeaderIndex_(header);
+  let count = 0;
+  for (let i = 1; i < data.length; i++) {
+    const obj = rowToDataRequestThreadObj_(data[i], idx);
+    if (normalizeUsername_(obj.createdByUsername) === normUsername && isDataRequestUnreadFor_(obj, false)) count++;
+  }
+  return count;
+}
+
 function handleGetAllUsers_(p) {
   if (!isSuperAdmin_(p.requestingUsername)) {
     return { success: false, error: 'ไม่มีสิทธิ์เข้าถึงส่วนนี้ (เฉพาะ Super_Admin เท่านั้น)' };
@@ -2814,50 +3184,71 @@ function handleGenerate_(p) {
   const allowNull = (p.allowNull === true || p.allowNull === 'true');
   const formInputs = { rowsRequested: rowsRequested, allowNull: allowNull };
 
-  // (feature) ทางเลือกคู่ขนาน "Rule Compiler (Beta)" — หน้าเว็บส่ง p.useRuleCompiler=true มาถึงจะเข้าทางนี้เท่านั้น
+  // (feature) ทางเลือกคู่ขนาน "Rule-Based Mode" — หน้าเว็บส่ง p.useRuleCompiler=true มาถึงจะเข้าทางนี้เท่านั้น
   // ถ้าไม่ติ๊ก (ค่าเริ่มต้น) จะเข้า else ด้านล่างซึ่งเป็น path เดิมเป๊ะทุกบรรทัด ไม่ถูกแก้ไขเลยแม้แต่ตัวเดียว
-  // เป้าหมาย: เรียก Gemini แค่ 1 ครั้งต่อคำขอ (compileRules_) ไม่ว่าคอลัมน์จะมี ai_context กี่คอลัมน์ก็ตาม
-  // (fix 2026-09-07: เดิมยังต้องเรียกซ้ำอีก 1 ครั้งผ่าน fillAiContextColumns_ ถ้ามีคอลัมน์ ai_context ทำให้รวม
-  // เป็น 2 ครั้ง เท่ากับ/แพงกว่า path เดิม — ตอนนี้ generateRowsFromRules_ เติม ai_context ด้วยแม่แบบที่ Gemini
-  // เขียนมาให้ตั้งแต่ compileRules_ แล้ว ไม่ต้องเรียก Gemini ซ้ำอีกเลย ดูเหตุผลที่ RuleDispatcher.gs)
-  // แทนที่จะให้ Gemini เขียนข้อมูลทุกแถวเอง — ดูรายละเอียด/เหตุผลการออกแบบที่ RuleCompilerPrompt.gs และ RuleDispatcher.gs
+  // (fix 2026-09-19) เดิมโหมดนี้ยังต้องเรียก Gemini 1 ครั้ง (compileRules_) เพื่อ "แปล" เงื่อนไขที่ผู้ใช้พิมพ์เป็น JSON Rules
+  // ก่อนส่งต่อให้ generateRowsFromRules_ สุ่มค่าด้วยโค้ดล้วนอีกที — ยังมี AI ผสมอยู่ 1 จุด ไม่ใช่โค้ดล้วน 100% ตามที่ตั้งใจไว้จริงๆ
+  // เปลี่ยนมาเป็นอ่านกฎที่มนุษย์ (ผู้ดูแลระบบ) เขียนไว้ล่วงหน้าในชีต RuleTemplates โดยตรงแทน
+  // (แก้ไขรอบ 2, 2026-09-19) จุด match เปลี่ยนจาก "ชื่อตาราง" มาเป็น "ชื่อคอลัมน์" แทน (ดูเหตุผลที่คอมเมนต์ของ
+  // getRuleTemplateForColumns_ ใน RuleDispatcher.gs) เพื่อให้เขียนกฎครั้งเดียวใช้ซ้ำได้ทุกตารางที่มีคอลัมน์ชื่อเดียวกัน
+  // (เช่น "email" เขียนสูตรเดียว ใช้ได้ทุกตาราง) พร้อม override เฉพาะตารางได้ถ้าชื่อคอลัมน์เดียวกันความหมายไม่ตรงกัน
+  // ผลที่ตามมา: โหมดนี้ "ต้องมี" DDL Script เสมอ (ต่างจากเดิมที่เป็นออปชัน) เพราะต้องรู้รายชื่อคอลัมน์ทั้งหมดของตาราง
+  // ก่อน ถึงจะไล่หากฎทีละคอลัมน์ได้ — ไม่มี DDL ก็ไม่รู้ว่าต้องหาคอลัมน์อะไรบ้าง ต้องคืน error ทันทีให้ผู้ใช้แปะ DDL มา
+  // ไม่พบกฎครบทุกคอลัมน์ (ขาดแม้แต่คอลัมน์เดียว) — "ไม่" fallback ไปที่ไหนอัตโนมัติทั้งชุด (กันไม่ให้ระบบแอบสลับไปใช้
+  // AI เติมคอลัมน์ที่ขาดให้เงียบๆ โดยผู้ใช้ไม่รู้ตัว ซึ่งจะย้อนกลับไปมี "AI ผสม" อีกครั้ง) แต่คืน error บอกชัดว่าขาดคอลัมน์ไหน
+  // ให้ผู้ใช้ตัดสินใจเอง (ติดต่อผู้ดูแลระบบให้เพิ่มกฎ หรือสลับไป Legacy Mode)
+  // compileRules_/buildRuleCompilerPrompt_ (RuleCompilerPrompt.gs/RuleDispatcher.gs) ยังไม่ถูกลบทิ้ง เก็บไว้เป็นโค้ดสำรอง
+  // เผื่ออนาคตต้องการโหมด AI-assisted อีกแบบ แต่ปัจจุบัน "ไม่มีจุดไหนเรียกใช้แล้วจริงๆ" (ตรงกับคอมเมนต์หัวไฟล์ทั้งสองไฟล์นั้น)
   const useRuleCompiler = (p.useRuleCompiler === true || p.useRuleCompiler === 'true');
 
   let smartPrompt;
   let rows;
 
   if (useRuleCompiler) {
-    let rules;
-    try {
-      rules = compileRules_(p); // เรียก Gemini ครั้งเดียวทั้งหมด (แปลเงื่อนไข -> JSON Rules) นิยามอยู่ใน RuleDispatcher.gs
-      smartPrompt = buildRuleCompilerPrompt_(p, getTodayContextStr_()); // เก็บไว้ log/แสดงผลเหมือน path เดิม (promptUsed)
-    } catch (err) {
-      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'Rule Compiler (Beta) ไม่สำเร็จ: ' + err.message);
-      return { success: false, error: 'Rule Compiler (Beta) ไม่สำเร็จ: ' + err.message };
+    // ต้องมี DDL Script เสมอในโหมดนี้ (บังคับ ต่างจาก Legacy Mode ที่เป็นออปชัน) เพราะเป็นแหล่งเดียวที่บอก "รายชื่อคอลัมน์
+    // ที่ต้องมี" ให้ระบบไปไล่หากฎทีละคอลัมน์ในชีต RuleTemplates ได้ — ไม่มี DDL ก็ไม่รู้จะไปหากฎของคอลัมน์อะไรบ้าง
+    const ddlColumnsForRules = parseDdlColumns_(p.ddlScript || '');
+    if (!p.ddlScript || !ddlColumnsForRules.length) {
+      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'Rule-Based Mode: ไม่ได้แปะ DDL Script มา (จำเป็นสำหรับโหมดนี้เพื่อให้รู้รายชื่อคอลัมน์)');
+      return {
+        success: false,
+        error: 'Rule-Based Mode ต้องแปะ DDL Script (โครงสร้างตาราง) มาด้วยเสมอ เพื่อให้ระบบรู้ว่าต้องค้นหากฎของคอลัมน์อะไรบ้างในฐานข้อมูล กรุณาแปะ DDL Script แล้วลองใหม่ หรือกลับไปใช้ระบบ Legacy Mode แทน'
+      };
     }
 
-    // (fix) เดิม schemaConfig.allowedColumns ถูกล็อกไว้เท่ากับคอลัมน์ที่พิมพ์ใน DDL ตรงๆ เท่านั้น (ตั้งไว้ก่อนเรียก compileRules_
-    // ด้วยซ้ำ — ดูคอมเมนต์บรรทัดบนสุดของฟังก์ชันนี้) ทำให้แม้ compileRules_ จะยอมรับคอลัมน์ที่ Gemini เติมมาจากรูป Schema/ER
-    // Diagram แล้ว (ดู RuleDispatcher.gs ที่ข้ามเช็ค "extra" เมื่อมีรูป) แต่ reconcileColumns_ ด้านล่างซึ่งใช้ allowedColumns
-    // ตัวเดิมนี้อยู่ดี ก็จะตัดคอลัมน์ที่เติมมาจากรูปทิ้งเงียบๆ อยู่ดี — ผลคือฟีเจอร์อ่านรูปดูเหมือนทำงาน (compileRules_ ผ่าน)
-    // แต่ผลลัพธ์สุดท้ายที่ผู้ใช้เห็นกลับไม่มีคอลัมน์จากรูปเลย พิสูจน์แล้วจริงจากการทดสอบ Test 6 (2026-09-08)
-    // แก้โดยขยาย allowedColumns ให้รวมคอลัมน์ที่ Rule Compiler ตอบมาเพิ่มด้วย เฉพาะตอนมีรูปแนบมา (ไม่กระทบ path เดิม/
-    // กรณีไม่มีรูปเลย เพราะเงื่อนไข p.schemaImageBase64 จะเป็นเท็จ) requiredColumns ยังคงเป็นแค่ที่พิมพ์ใน DDL เหมือนเดิม
-    // (คอลัมน์จากรูปถือเป็นส่วนเสริมที่อนุญาตให้มี ไม่ใช่คอลัมน์บังคับที่พลาดไม่ได้เท่ากับที่ผู้ใช้พิมพ์ตรงๆ)
-    if (p.schemaImageBase64 && schemaConfig && schemaConfig.allowedColumns) {
-      const ruleColumnNames = rules.columns.map(function (c) { return c.name; });
-      const mergedAllowed = schemaConfig.allowedColumns.slice();
-      ruleColumnNames.forEach(function (name) {
-        if (mergedAllowed.indexOf(name) === -1) mergedAllowed.push(name);
-      });
-      schemaConfig = { allowedColumns: mergedAllowed, requiredColumns: schemaConfig.requiredColumns };
+    let templateResult;
+    try {
+      templateResult = getRuleTemplateForColumns_(p.tableName, ddlColumnsForRules); // อ่านกฎจากชีต RuleTemplates ล้วนๆ ไม่เรียก Gemini เลย — นิยามอยู่ใน RuleDispatcher.gs
+    } catch (err) {
+      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'Rule-Based Mode: อ่านชีต RuleTemplates ไม่สำเร็จ: ' + err.message);
+      return { success: false, error: 'อ่านชุดกฎจากฐานข้อมูล (RuleTemplates) ไม่สำเร็จ: ' + err.message };
     }
+
+    if (templateResult.missing.length) {
+      // ขาดกฎของบางคอลัมน์ (หาไม่เจอทั้งแบบเฉพาะตารางและแบบกลาง) — แจ้งผู้ใช้ตรงๆ ว่าขาดคอลัมน์ไหนบ้าง ไม่เดา/ไม่ fallback ไป AI
+      // (ขึ้น popup ฝั่งหน้าเว็บผ่าน error message นี้ เพราะ callBackend throw Error(json.error) ทุกครั้งที่ success:false อยู่แล้ว
+      // — ดู showCustomAlert ใน Final.html)
+      // (fix 2026-09-19) Super_Admin คือผู้ดูแลระบบเอง ไม่ต้องบอกให้ "ติดต่อผู้ดูแลระบบ" (วนกลับมาหาตัวเอง) — บอกให้ไปเพิ่มกฎ
+      // ในชีต RuleTemplates เองแทน ใช้ isSuperAdmin_(p.username) เช็คสิทธิ์จริงจากฐานข้อมูล ไม่เชื่อ p.role ที่ส่งมาจากฝั่ง
+      // client ตรงๆ (ปลอมแปลงได้ง่ายเพราะเป็นแค่ payload ธรรมดา) เหมือนจุดอื่นๆ ในระบบที่เช็คสิทธิ์ Super_Admin
+      const missingMsg = 'ไม่พบข้อมูลของคอลัมน์ [' + templateResult.missing.join(', ') + '] ในฐานข้อมูล';
+      const errorMsg = isSuperAdmin_(p.username)
+        ? missingMsg + ' กรุณาเพิ่มกฎของคอลัมน์เหล่านี้ในชีต RuleTemplates ก่อน หรือกลับไปใช้ระบบ Legacy Mode แทน'
+        : missingMsg + ' กรุณาติดต่อผู้ดูแลระบบ หรือกลับไปใช้ระบบ Legacy Mode แทน';
+      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'Rule-Based Mode: ไม่พบกฎของคอลัมน์ [' + templateResult.missing.join(', ') + '] (ตาราง "' + p.tableName + '") ในฐานข้อมูล (RuleTemplates)');
+      return { success: false, error: errorMsg };
+    }
+
+    const rules = { columns: templateResult.columns };
+
+    // เก็บไว้ log/แสดงผลเหมือน path เดิม (promptUsed) — ไม่มี prompt จริงให้แสดงอีกต่อไปเพราะไม่ได้เรียก AI ในขั้นตอนนี้แล้ว
+    smartPrompt = '[Rule-Based Mode] ดึงกฎจากชีต RuleTemplates ตามรายชื่อคอลัมน์ใน DDL ของตาราง "' + p.tableName + '" (' + rules.columns.length + ' คอลัมน์) — ไม่มีการเรียก Gemini ในขั้นตอนสร้างข้อมูลนี้';
 
     try {
       rows = generateRowsFromRules_(rules, rowsRequested); // สุ่มด้วยโค้ดล้วนๆ ไม่เรียก Gemini เลย (รวมคอลัมน์ ai_context ด้วย)
     } catch (err) {
-      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'สุ่มข้อมูลจาก Rules (Beta) ไม่สำเร็จ: ' + err.message);
-      return { success: false, error: 'สุ่มข้อมูลจาก Rules (Beta) ไม่สำเร็จ: ' + err.message };
+      logActivity_(p.username, p.role, 'GENERATE_FAIL', 'สุ่มข้อมูลจาก Rules (RuleTemplates) ไม่สำเร็จ: ' + err.message);
+      return { success: false, error: 'สุ่มข้อมูลจาก Rules ไม่สำเร็จ: ' + err.message };
     }
   } else {
     smartPrompt = buildSmartPrompt_(p, schemaConfig, rowsRequested, allowNull);
@@ -3932,12 +4323,24 @@ function handleGetDashboardStats_(p) {
       adminPendingCount = countAdminPendingRequests_();
     }
 
+    // dataRequestPendingCount = badge ของแท็บ "ติดต่อผู้ดูแลระบบ" — ความหมายต่างกันตาม role ที่ถาม:
+    // Super_Admin เห็นจำนวน thread ที่ "ผู้ใช้ส่งมาแล้วรอแอดมินตอบ", ผู้ใช้ทั่วไปเห็นจำนวน thread ของตัวเองที่
+    // "แอดมินตอบแล้วรอตัวเองอ่าน/ตอบกลับ" — ถ้าไม่มี username ส่งมาเลยก็ถือว่ายังไม่ล็อกอิน ส่ง null ไปซ่อน badge
+    let dataRequestPendingCount = null;
+    if (p.requestingUsername && isSuperAdmin_(p.requestingUsername)) {
+      dataRequestPendingCount = countDataRequestPendingForAdmin_();
+    } else if (p.requestingUsername) {
+      // dashboard ฝั่ง frontend ส่งชื่อผู้ใช้ปัจจุบันมาในฟิลด์ requestingUsername เสมอไม่ว่า role ไหน (ดู refreshDashboardStats_)
+      dataRequestPendingCount = countDataRequestPendingForUser_(p.requestingUsername);
+    }
+
     return {
       success: true,
       totalGenerates: totalCommittedBatches,
       avgReliability: quality.avgReliability,
       dataVolume: dataVolume,
-      adminPendingCount: adminPendingCount
+      adminPendingCount: adminPendingCount,
+      dataRequestPendingCount: dataRequestPendingCount
     };
   } catch (e) {
     return { success: false, error: 'โหลดสถิติ Dashboard ไม่สำเร็จ: ' + e.message };

@@ -226,6 +226,10 @@
         .app-navitem-badge { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: #e11d48; color: #fff; font-size: 10px; font-weight: 700; line-height: 17px; text-align: center; display: none; }
         .app-navitem-badge.show { display: block; }
         .dark .app-navitem-badge { background: #f43f5e; color: #111; }
+        /* (feature 2026-09-20) แอนิเมชันฟองข้อความใหม่ในแท็บ "ติดต่อผู้ดูแลระบบ" เด้งขึ้นแบบเบาๆ ตอนส่ง/ได้รับข้อความใหม่
+           เลียนแบบความรู้สึกของแอปแชท (Messenger/LINE/Instagram) ที่กล่องข้อความไม่ต้องโหลดใหม่ทั้งหน้าทุกครั้งที่ส่ง */
+        @keyframes caBubbleIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .ca-bubble-enter { animation: caBubbleIn 0.22s ease-out; }
         [data-app-section] { display: none; }
         [data-app-section].app-section-visible { display: block; }
         /* ต้องเจาะจงกว่ากฎด้านบน (ใช้ #id) ไม่ใช่ inline style เพราะ inline style จะชนะ CSS เสมอและทำให้กฎซ่อน/แสดงตามแท็บด้านบนใช้ไม่ได้ (บั๊กที่เจอ: section นี้โผล่ทุกแท็บ) */
@@ -920,6 +924,13 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
                     บันทึกกิจกรรมระบบ
                 </button>
+                <!-- (feature 2026-09-19) แท็บ "ติดต่อผู้ดูแลระบบ" — เห็นได้ทุก Role (ไม่ซ่อนเหมือนแท็บ Super_Admin อื่นๆ) เพราะเป้าหมายคือให้ role อื่นที่ไม่ใช่ Super_Admin ส่งคำขอเพิ่มข้อมูลได้เอง ส่วน Super_Admin เองก็ใช้แท็บเดียวกันนี้เพื่อดู/ตอบคำขอของทุกคน (ดูสิทธิ์จริงฝั่ง backend ที่ handleGetMyDataRequestThreads_/handleGetAllDataRequestThreads_) badge ใช้กลไกเดียวกับ adminPendingBadge (ดู refreshDashboardStats_/updateDataRequestBadge_) -->
+                <button type="button" id="navBtnContactAdmin" onclick="showAppSection_('contactadmin')" class="app-navitem app-navitem-btn">
+                    <span class="app-navitem-dot"></span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                    ติดต่อผู้ดูแลระบบ
+                    <span id="dataRequestPendingBadge" class="app-navitem-badge"></span>
+                </button>
                 <button type="button" id="navBtnCommitHistory" onclick="openDatasetHistoryModal()" class="app-navitem app-navitem-btn">
                     <span class="app-navitem-dot"></span>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
@@ -985,6 +996,14 @@
                 <p class="app-sidebar-footer-title">ตรวจสอบย้อนหลังได้ทุกการกระทำ</p>
                 <p class="app-sidebar-footer-sub">บันทึกทุกกิจกรรมสำคัญของระบบแบบเรียลไทม์ พิมพ์เป็นรายงานได้ทุกเมื่อ</p>
             </div>
+            <!-- กล่องอธิบายนี้โชว์เฉพาะตอนอยู่แท็บ "ติดต่อผู้ดูแลระบบ" เท่านั้น (ใช้กลไก data-app-section เดียวกับตัวเนื้อหาหลัก ซ่อน/แสดงอัตโนมัติตามแท็บที่เลือกอยู่ผ่าน showAppSection_ อยู่แล้ว ไม่ต้องเขียน JS เพิ่ม) -->
+            <div id="sidebarContactAdminTip" class="app-sidebar-footer" data-app-section="contactadmin">
+                <div class="app-sidebar-footer-icon">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                </div>
+                <p class="app-sidebar-footer-title">ขอข้อมูลเพิ่มได้จากในเว็บนี้เลย</p>
+                <p class="app-sidebar-footer-sub">ไม่พบข้อมูลที่ต้องการ? ส่งคำขอถึงผู้ดูแลระบบและคุยตอบไปตอบมาได้ทันทีโดยไม่ต้องออกไปช่องทางอื่น</p>
+            </div>
             <!-- กล่องอธิบายนี้โชว์เฉพาะตอนอยู่แท็บ "ประวัติ Commit" เท่านั้น (ใช้กลไก data-app-section เดียวกับตัวเนื้อหาหลัก ซ่อน/แสดงอัตโนมัติตามแท็บที่เลือกอยู่ผ่าน showAppSection_ อยู่แล้ว ไม่ต้องเขียน JS เพิ่ม) -->
             <div id="sidebarCommitHistoryTip" class="app-sidebar-footer" data-app-section="commithistory">
                 <div class="app-sidebar-footer-icon">
@@ -1028,6 +1047,8 @@
             <div class="flex flex-col gap-2 items-start md:items-end w-full md:w-auto">
                 <div class="flex items-center gap-3 flex-wrap justify-start md:justify-end">
                     <button id="btnToggleDarkMode" onclick="toggleDarkMode()" title="สลับโหมดสว่าง/มืด" class="px-3 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-white rounded-xl border border-slate-200 dark:border-slate-500 shadow-sm dark:shadow-black/30 transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark Mode</button>
+                    <!-- (feature 2026-09-19) ลิงก์เปิด Google Sheet ต้นทางของระบบ (ไว้แก้ชีต RuleTemplates ฯลฯ) — เห็นเฉพาะ Super_Admin เท่านั้น (ซ่อนไว้ด้วย class hidden เป็นค่าเริ่มต้น สลับแสดง/ซ่อนจริงใน enterDashboard() ฝั่ง backend ก็เช็คสิทธิ์จริงซ้ำอีกชั้นเสมอตอนขอลิงก์ ไม่ได้พึ่งการซ่อนปุ่มนี้ฝั่งหน้าเว็บอย่างเดียว) -->
+                    <button id="btnOpenRuleSheetHeader" onclick="openAdminGoogleSheet()" class="hidden px-3 py-2 text-xs font-semibold bg-white dark:bg-slate-700 text-slate-600 dark:text-white border border-slate-200 dark:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl shadow-sm dark:shadow-black/30 transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4"/><path d="M14 3h7v7"/><path d="M10 14 21 3"/></svg>Google Sheet ข้อมูล</button>
                     <button onclick="openChangeOwnPasswordModal()" class="px-3 py-2 text-xs font-semibold bg-white dark:bg-slate-700 text-slate-600 dark:text-white border border-slate-200 dark:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl shadow-sm dark:shadow-black/30 transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.5 12.5 19 4M17 6l3 3M14 9l2 2"/></svg>เปลี่ยนรหัสผ่าน</button>
                     <button id="btnRequestDeleteAccount" onclick="triggerRequestDeleteAccountConfirm()" class="px-3 py-2 text-xs font-semibold bg-white dark:bg-slate-700 text-slate-600 dark:text-white border border-slate-200 dark:border-slate-500 hover:bg-rose-50 dark:hover:bg-rose-950 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl shadow-sm dark:shadow-black/30 transition-all"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-2px] mr-1"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>ขอลบบัญชี</button>
                     <!-- (v120) รีเซ็ตข้อมูล เปลี่ยนจากสีแดง(rose) เป็นสีเหลือง(amber) ตามที่แจ้ง — ออกจากระบบ เปลี่ยนจากสีเทา(slate) เป็นสีแดง(rose) เดิม ให้เข้ากันทั้ง Light/Dark Mode -->
@@ -1477,6 +1498,30 @@
             </div>
         </div><!-- /#sectionActivityLog -->
 
+        <!-- (feature 2026-09-19) แท็บ "ติดต่อผู้ดูแลระบบ" — เห็นได้ทุก Role เนื้อหาทั้งหมดในแท็บนี้ (รายการ thread / ฟอร์มสร้างคำขอใหม่ / หน้าต่างแชท) เรนเดอร์ด้วย JS ล้วนลงใน #contactAdminBody จุดเดียว
+             สลับ 3 มุมมองด้วยฟังก์ชัน renderContactAdminSection_ (มุมมองรายการ) / showContactAdminNewRequestForm_ (มุมมองสร้างคำขอใหม่) / openContactAdminThread_ (มุมมองแชท) — ไม่มีการใช้ Popup ลอยแยกเหมือนแท็บอื่น เพราะเนื้อหาเปลี่ยนบ่อยและต้องสลับไปมาได้เร็ว -->
+        <div id="sectionContactAdmin" data-app-section="contactadmin" class="space-y-6">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 border border-slate-100 dark:border-slate-700 space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                            <span id="contactAdminHeaderTitle">ติดต่อผู้ดูแลระบบ</span>
+                        </h3>
+                        <p id="contactAdminHeaderSubtitle" class="text-xs text-slate-500 dark:text-slate-300 mt-1">ขอเพิ่มข้อมูลในระบบ หรือสอบถามผู้ดูแลระบบได้โดยตรงจากหน้านี้</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="btnContactAdminBack" onclick="renderContactAdminSection_()" class="hidden px-3 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-white rounded-xl transition-all">← กลับไปหน้ารายการ</button>
+                        <!-- (feature 2026-09-20) ซ่อนเฉพาะ Super_Admin (ดู renderContactAdminSection_/openContactAdminThread_) เพราะเป็นผู้ดูแลระบบเองอยู่แล้ว ไม่ต้อง "ขอข้อมูล" ถึงตัวเอง — ค่าเริ่มต้นซ่อนไว้ก่อนกันไม่ให้กระพริบตอนโหลดหน้าแรกก่อน JS เช็ค role เสร็จ -->
+                        <button id="btnContactAdminNew" onclick="showContactAdminNewRequestForm_()" class="hidden px-3 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition-all">+ สร้างคำขอใหม่</button>
+                    </div>
+                </div>
+                <div id="contactAdminBody" class="text-xs text-slate-700 dark:text-slate-300">
+                    <p class="text-slate-400 dark:text-slate-400 text-center py-8">กำลังโหลดข้อมูล...</p>
+                </div>
+            </div>
+        </div><!-- /#sectionContactAdmin -->
+
         <!-- แปลงจาก Popup เดิมมาเป็นแท็บฝังในหน้า (data-app-section) ตามรูปแบบเดียวกับแท็บอื่นๆ ด้านบน — id/เนื้อหาภายใน (qualityReportBody, qrCloseBtn ฯลฯ) และฟังก์ชัน JS ทั้งหมดยังเหมือนเดิมทุกจุด ไม่มีการเปลี่ยน Flow การทำงานเลย เปลี่ยนแค่กล่องที่ครอบจาก Popup ลอยกลางจอเป็นเนื้อหาฝังในหน้าแท็บแทน ปุ่ม "ปิด" เดิมถูกซ่อนถาวรด้วย CSS (ดู #qrCloseBtn/#dhCloseBtn ใน <style>) แต่คงปุ่มไว้ในหน้าเว็บเพื่อไม่ให้ฟังก์ชัน JS เดิมที่อ้างอิง id นี้พัง -->
         <div id="sectionQualityReport" data-app-section="qualityreport" class="space-y-6">
             <div id="qualityReportModal" class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col">
@@ -1862,7 +1907,7 @@
             document.querySelectorAll('[data-app-section]').forEach(function (el) {
                 el.classList.toggle('app-section-visible', el.dataset.appSection === name);
             });
-            const navMap = { dashboard: 'navBtnDashboard', generate: 'navBtnGenerate', datapreview: 'navBtnDataPreview', sqlpreview: 'navBtnSqlPreview', activitylog: 'navBtnActivityLog', commithistory: 'navBtnCommitHistory', qualityreport: 'navBtnQualityReport', usermanagement: 'btnAdminUserPanel' };
+            const navMap = { dashboard: 'navBtnDashboard', generate: 'navBtnGenerate', datapreview: 'navBtnDataPreview', sqlpreview: 'navBtnSqlPreview', activitylog: 'navBtnActivityLog', contactadmin: 'navBtnContactAdmin', commithistory: 'navBtnCommitHistory', qualityreport: 'navBtnQualityReport', usermanagement: 'btnAdminUserPanel' };
             Object.keys(navMap).forEach(function (key) {
                 const btn = document.getElementById(navMap[key]);
                 if (btn) btn.classList.toggle('app-navitem-active', key === name);
@@ -1874,6 +1919,8 @@
             // หมายเหตุ: จงใจไม่เช็คตัวแปร loggedInUsername ตรงนี้ เพราะตัวแปรนั้นประกาศด้วย let ไว้ทีหลังในสคริปต์ ถ้าเช็คตอนเรียกครั้งแรก (ก่อนถึงบรรทัดประกาศ) จะโดน TDZ error ทันที
             const dashScreenEl = document.getElementById('dashboardScreen');
             if (name === 'dashboard' && dashScreenEl && !dashScreenEl.classList.contains('hidden') && typeof refreshDashboardStats_ === 'function') refreshDashboardStats_();
+            // ทุกครั้งที่เข้าแท็บ "ติดต่อผู้ดูแลระบบ" ให้ดึงรายการ thread ใหม่เสมอ (เช็ค login เหมือนเงื่อนไข dashboard ด้านบนทุกจุด)
+            if (name === 'contactadmin' && dashScreenEl && !dashScreenEl.classList.contains('hidden') && typeof renderContactAdminSection_ === 'function') renderContactAdminSection_();
             try { window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' }); } catch (e) { /* ข้ามได้ */ }
             // (v156) window.scrollTo ด้านบนไม่มีผลจริง เพราะทั้งหน้าเว็บถูกล็อกไม่ให้เลื่อนอยู่แล้ว (ดู #dashboardScreen ใน <style>) — ตัวที่เลื่อนจริงคือ .app-content-scroll ตัวเดียวที่ทุกแท็บใช้ร่วมกัน
             // เดิมไม่เคยรีเซ็ต scrollTop ของกรอบนี้เลยตอนสลับแท็บ ตำแหน่งเลื่อนของแท็บก่อนหน้าเลยติดค้างมาโผล่ที่แท็บใหม่ทันที (เลื่อนแท็บนึงแล้วเหมือนแท็บอื่นเลื่อนตามไปด้วย) — รีเซ็ตเป็น 0 ทุกครั้งที่เรียกฟังก์ชันนี้ ทุกแท็บจะเริ่มที่ตำแหน่งบนสุดเสมอไม่ว่าจะเคยเลื่อนค้างไว้ตรงไหนมาก่อน
@@ -2782,6 +2829,9 @@
             // ปุ่ม "จัดการผู้ใช้งาน" เห็นเฉพาะ Super_Admin เท่านั้น (ฝั่ง backend ก็เช็คสิทธิ์จริงซ้ำอีกชั้นเสมอ ไม่ได้พึ่งการซ่อนปุ่มนี้อย่างเดียว)
             const adminBtn = document.getElementById('btnAdminUserPanel');
             if (adminBtn) adminBtn.classList.toggle('hidden', loggedInRole !== 'Super_Admin');
+            // ปุ่ม "เปิด Google Sheet ข้อมูล" บนแถบ Header ด้านบน เห็นเฉพาะ Super_Admin เท่านั้นเช่นกัน (backend เช็คสิทธิ์ซ้ำอีกชั้นตอนขอลิงก์จริง)
+            const ruleSheetHeaderBtn = document.getElementById('btnOpenRuleSheetHeader');
+            if (ruleSheetHeaderBtn) ruleSheetHeaderBtn.classList.toggle('hidden', loggedInRole !== 'Super_Admin');
 
             // ปุ่ม "ขอลบบัญชี" ต้องไม่มีให้ Super Admin หลักของระบบ (PRIMARY_SUPER_ADMIN_USERNAME) กดเลย เพราะบัญชีนี้ต้องมีอยู่เสมอเพื่อดูแลระบบ/อนุมัติ Super_Admin ใหม่ (backend ก็เช็คซ้ำอีกชั้นใน handleRequestDeleteAccount_)
             const btnRequestDelete = document.getElementById('btnRequestDeleteAccount');
@@ -2850,6 +2900,7 @@
                 numEl.innerText = (typeof result.totalGenerates === 'number') ? result.totalGenerates : '–';
                 relEl.innerText = (typeof result.avgReliability === 'number') ? (result.avgReliability + '%') : 'N/A';
                 updateAdminPendingBadge_(result.adminPendingCount);
+                updateDataRequestBadge_(result.dataRequestPendingCount);
                 applyDashboardDataVolume_(result.dataVolume);
             } catch (e) {
                 numEl.innerText = '–';
@@ -2868,6 +2919,336 @@
             } else {
                 badge.innerText = '';
                 badge.classList.remove('show');
+            }
+        }
+
+        // จุด/ตัวเลขแจ้งเตือนบน Sidebar แท็บ "ติดต่อผู้ดูแลระบบ" — ความหมายต่างกันตาม role (ดูคอมเมนต์ที่ handleGetDashboardStats_
+        // ฝั่ง backend): Super_Admin เห็นจำนวนคำขอที่ผู้ใช้ส่งมารอตอบ, ผู้ใช้ทั่วไปเห็นจำนวน thread ของตัวเองที่แอดมินตอบแล้วรออ่าน
+        function updateDataRequestBadge_(count) {
+            const badge = document.getElementById('dataRequestPendingBadge');
+            if (!badge) return;
+            if (typeof count === 'number' && count > 0) {
+                badge.innerText = count > 99 ? '99+' : String(count);
+                badge.classList.add('show');
+            } else {
+                badge.innerText = '';
+                badge.classList.remove('show');
+            }
+        }
+
+        // ==========================================
+        // (feature 2026-09-19) ระบบ "ติดต่อผู้ดูแลระบบ" (Contact Admin / Data Request) — ฝั่งหน้าเว็บทั้งหมด
+        // 3 มุมมองสลับกันภายใน #contactAdminBody จุดเดียว: รายการ thread (renderContactAdminSection_) / ฟอร์มสร้างคำขอใหม่
+        // (showContactAdminNewRequestForm_) / หน้าต่างแชทของ thread เดียว (openContactAdminThread_) — ไม่ใช้ Popup ลอยแยก
+        // ==========================================
+        let contactAdminCurrentThreadId_ = null;
+        let contactAdminRequestFormat_ = 'form';
+
+        function escDataRequestText_(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function formatContactAdminTimestamp_(ts) {
+            try {
+                const d = new Date(ts);
+                if (isNaN(d.getTime())) return String(ts || '-');
+                return d.toLocaleString('th-TH', { hour12: false });
+            } catch (e) {
+                return String(ts || '-');
+            }
+        }
+
+        function contactAdminStatusBadgeHtml_(status) {
+            if (status === 'closed') {
+                return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">ปิดแล้ว</span>`;
+            }
+            return `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">เปิดอยู่</span>`;
+        }
+
+        // มุมมองหลัก: รายการ thread ทั้งหมด — Super_Admin เห็นของทุกคน (getAllDataRequestThreads), role อื่นเห็นแค่ของตัวเอง (getMyDataRequestThreads)
+        // เช็คสิทธิ์จริงซ้ำอีกชั้นเสมอฝั่ง backend อยู่แล้ว ไม่ได้พึ่งการเช็ค loggedInRole ฝั่งหน้าเว็บนี้อย่างเดียว
+        async function renderContactAdminSection_() {
+            contactAdminCurrentThreadId_ = null;
+            document.getElementById('btnContactAdminBack').classList.add('hidden');
+            // (feature 2026-09-20) Super_Admin เป็นผู้ดูแลระบบอยู่แล้ว ไม่ต้อง "สร้างคำขอ" ถึงตัวเอง จึงซ่อนปุ่มนี้เฉพาะ Super_Admin
+            // แต่ยังคงเห็นทั้งแท็บและรายการคำขอของทุกคนตามปกติ เพื่อเข้ามาดู/ตอบคำขอผ่านหน้าเว็บได้เหมือนเดิม
+            document.getElementById('btnContactAdminNew').classList.toggle('hidden', loggedInRole === 'Super_Admin');
+            const isAdmin = (loggedInRole === 'Super_Admin');
+            document.getElementById('contactAdminHeaderTitle').innerText = 'ติดต่อผู้ดูแลระบบ';
+            document.getElementById('contactAdminHeaderSubtitle').innerText = isAdmin
+                ? 'รายการคำขอ/คำถามจากผู้ใช้งานทุกคนในระบบ'
+                : 'ขอเพิ่มข้อมูลในระบบ หรือสอบถามผู้ดูแลระบบได้โดยตรงจากหน้านี้';
+            const body = document.getElementById('contactAdminBody');
+            body.innerHTML = `<p class="text-slate-400 dark:text-slate-400 text-center py-8">กำลังโหลดข้อมูล...</p>`;
+            try {
+                const result = isAdmin
+                    ? await callBackend('getAllDataRequestThreads', { requestingUsername: loggedInUsername })
+                    : await callBackend('getMyDataRequestThreads', { username: loggedInUsername });
+                const threads = result.threads || [];
+                if (!threads.length) {
+                    body.innerHTML = `<p class="text-slate-400 dark:text-slate-400 text-center py-10">${isAdmin ? 'ยังไม่มีคำขอเข้ามาในระบบ' : 'ยังไม่เคยส่งคำขอถึงผู้ดูแลระบบ กด "+ สร้างคำขอใหม่" เพื่อเริ่มต้นได้เลย'}</p>`;
+                    return;
+                }
+                const rowsHtml = threads.map(function (t) {
+                    // (feature 2026-09-20) ใช้ค่า t.unread ที่ backend คำนวณมาให้แล้ว (ผสม last_sender_role + เวลาอ่านล่าสุด
+                    // ของแต่ละฝ่าย ดู isDataRequestUnreadFor_ ใน Code.gs) แทนการเดาจาก last_sender_role อย่างเดียวแบบเดิม
+                    // เพื่อให้ตรงกับ badge บน Sidebar เป๊ะๆ และหายไปทันทีที่เคยเปิดเข้ามาอ่านแล้วจริงๆ
+                    const isWaiting = !!t.unread;
+                    const waitingBadge = isWaiting
+                        ? `<span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300">รอตอบกลับ</span>` : '';
+                    // (feature 2026-09-20) เพิ่มจุดแดงกระพริบที่มุมกล่องแต่ละคำขอที่ "รอตอบกลับ" เพราะ badge ที่แท็บ Sidebar เพียงอย่างเดียว
+                    // (ดู updateDataRequestBadge_) สังเกตเห็นยากถ้าเลื่อนลงมาดูรายการนานแล้ว ต้องมีจุดสังเกตติดที่ตัวกล่องเองด้วย
+                    const cornerDotHtml = isWaiting
+                        ? `<span class="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-800 animate-pulse"></span>` : '';
+                    return `
+                        <button type="button" onclick="openContactAdminThread_('${t.threadId}')" class="relative w-full text-left p-4 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all flex flex-col gap-1.5">
+                            ${cornerDotHtml}
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-semibold text-slate-800 dark:text-white truncate">${escDataRequestText_(t.subject)}</span>
+                                <div class="flex items-center gap-1.5 shrink-0">${waitingBadge}${contactAdminStatusBadgeHtml_(t.status)}</div>
+                            </div>
+                            <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400 dark:text-slate-400">
+                                ${isAdmin ? `<span>จาก: <b class="text-slate-500 dark:text-slate-300">${escDataRequestText_(t.createdByUsername)}</b> (${escDataRequestText_(t.createdByRole)})</span>` : ''}
+                                <span>อัปเดตล่าสุด: ${formatContactAdminTimestamp_(t.lastMessageAt)}</span>
+                            </div>
+                        </button>`;
+                }).join('');
+                body.innerHTML = `<div class="space-y-2.5">${rowsHtml}</div>`;
+            } catch (e) {
+                body.innerHTML = `<p class="text-rose-500 text-center py-8">โหลดรายการคำขอไม่สำเร็จ: ${escDataRequestText_(e.message)}</p>`;
+            }
+        }
+
+        // มุมมองสร้างคำขอใหม่ — ให้เลือกได้ว่าจะใช้ "แบบฟอร์มโครงสร้าง" หรือ "แชทอิสระ" ตามที่ผู้ใช้แจ้งไว้ (ทั้งสองแบบใช้ได้จริงพร้อมกัน ไม่ได้เลือกแทนกัน)
+        function showContactAdminNewRequestForm_() {
+            contactAdminCurrentThreadId_ = null;
+            document.getElementById('btnContactAdminBack').classList.remove('hidden');
+            document.getElementById('btnContactAdminNew').classList.add('hidden');
+            document.getElementById('contactAdminHeaderTitle').innerText = 'สร้างคำขอใหม่';
+            document.getElementById('contactAdminHeaderSubtitle').innerText = 'เลือกรูปแบบที่สะดวก แล้วกรอกรายละเอียดคำขอถึงผู้ดูแลระบบ';
+            document.getElementById('contactAdminBody').innerHTML = `
+                <div class="space-y-4 max-w-xl">
+                    <div class="flex gap-2">
+                        <button type="button" id="btnCaFormatForm" onclick="setContactAdminRequestFormat_('form')" class="flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all">แบบฟอร์มโครงสร้าง</button>
+                        <button type="button" id="btnCaFormatChat" onclick="setContactAdminRequestFormat_('chat')" class="flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all">แชทอิสระ</button>
+                    </div>
+                    <div id="caFormFields" class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-300 mb-1">ชื่อตาราง <span class="text-rose-500">*</span></label>
+                            <input id="caTableName" type="text" placeholder="เช่น customers" class="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-300 mb-1">คอลัมน์ที่ต้องการ <span class="text-rose-500">*</span></label>
+                            <input id="caColumnsNeeded" type="text" placeholder="เช่น customer_id, full_name, phone_number" class="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-300 mb-1">เหตุผล/รายละเอียดเพิ่มเติม (ถ้ามี)</label>
+                            <textarea id="caReason" rows="3" placeholder="อธิบายเพิ่มเติมว่าต้องการนำไปใช้ทำอะไร" class="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg outline-none resize-none focus:ring-2 focus:ring-blue-400"></textarea>
+                        </div>
+                    </div>
+                    <div id="caChatFields" class="hidden space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-300 mb-1">หัวข้อ (ถ้าไม่กรอกจะใช้ข้อความแรกเป็นหัวข้อให้)</label>
+                            <input id="caChatSubject" type="text" placeholder="เช่น สอบถามเรื่องข้อมูล..." class="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-300 mb-1">ข้อความ <span class="text-rose-500">*</span></label>
+                            <textarea id="caChatMessage" rows="4" placeholder="พิมพ์ข้อความถึงผู้ดูแลระบบ..." class="w-full px-3 py-2 text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg outline-none resize-none focus:ring-2 focus:ring-blue-400"></textarea>
+                        </div>
+                    </div>
+                    <button type="button" onclick="submitContactAdminNewRequest_()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-all shadow-sm">ส่งคำขอ</button>
+                </div>`;
+            setContactAdminRequestFormat_('form');
+        }
+
+        function setContactAdminRequestFormat_(fmt) {
+            contactAdminRequestFormat_ = fmt;
+            document.getElementById('caFormFields').classList.toggle('hidden', fmt !== 'form');
+            document.getElementById('caChatFields').classList.toggle('hidden', fmt !== 'chat');
+            const formBtn = document.getElementById('btnCaFormatForm');
+            const chatBtn = document.getElementById('btnCaFormatChat');
+            const activeCls = ['bg-blue-600', 'text-white', 'border-blue-600'];
+            const inactiveCls = ['bg-white', 'dark:bg-slate-700', 'text-slate-600', 'dark:text-white', 'border-slate-200', 'dark:border-slate-500'];
+            [formBtn, chatBtn].forEach(function (btn) {
+                activeCls.concat(inactiveCls).forEach(function (c) { btn.classList.remove(c); });
+            });
+            (fmt === 'form' ? formBtn : chatBtn).classList.add.apply((fmt === 'form' ? formBtn : chatBtn).classList, activeCls);
+            (fmt === 'form' ? chatBtn : formBtn).classList.add.apply((fmt === 'form' ? chatBtn : formBtn).classList, inactiveCls);
+        }
+
+        async function submitContactAdminNewRequest_() {
+            const payload = { username: loggedInUsername, role: loggedInRole, requestType: contactAdminRequestFormat_ };
+            if (contactAdminRequestFormat_ === 'form') {
+                payload.tableName = document.getElementById('caTableName').value.trim();
+                payload.columnsNeeded = document.getElementById('caColumnsNeeded').value.trim();
+                payload.reason = document.getElementById('caReason').value.trim();
+                if (!payload.tableName || !payload.columnsNeeded) {
+                    showCustomAlert('กรุณากรอกชื่อตารางและคอลัมน์ที่ต้องการอย่างน้อย');
+                    return;
+                }
+            } else {
+                payload.subject = document.getElementById('caChatSubject').value.trim();
+                payload.message = document.getElementById('caChatMessage').value.trim();
+                if (!payload.message) {
+                    showCustomAlert('กรุณาพิมพ์ข้อความ');
+                    return;
+                }
+            }
+            showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังส่งคำขอ...</div>`);
+            try {
+                const result = await callBackend('createDataRequest', payload);
+                closeCustomAlert();
+                pushLog('SUCCESS', 'ส่งคำขอถึงผู้ดูแลระบบสำเร็จ (thread: ' + result.threadId + ')');
+                if (typeof refreshDashboardStats_ === 'function') refreshDashboardStats_();
+                openContactAdminThread_(result.threadId);
+            } catch (e) {
+                showCustomAlert('ส่งคำขอไม่สำเร็จ: ' + e.message);
+            }
+        }
+
+        // มุมมองแชทของ thread เดียว — ใช้ทั้งดูและตอบกลับ (getDataRequestMessages/replyDataRequest เช็คสิทธิ์ฝั่ง backend เสมอว่าเป็นเจ้าของ thread หรือ Super_Admin เท่านั้น)
+        // (feature 2026-09-20) แค่เปิดเข้ามาดู thread นี้ backend ก็ปั๊มเวลา "อ่านแล้ว" ให้อัตโนมัติทันที (ดู handleGetDataRequestMessages_
+        // ใน Code.gs) จึงต้องเรียก refreshDashboardStats_() ต่อทันทีที่โหลดสำเร็จ เพื่อให้ badge บน Sidebar ลดลง/หายไปทันที
+        // โดยไม่ต้องรอสลับแท็บไปมาก่อนถึงจะอัปเดต ตรงตามที่ต้องการ (เข้าไปอ่านแล้วออกมา การแจ้งเตือนต้องหายไปด้วย)
+        async function openContactAdminThread_(threadId) {
+            contactAdminCurrentThreadId_ = threadId;
+            document.getElementById('btnContactAdminBack').classList.remove('hidden');
+            document.getElementById('btnContactAdminNew').classList.toggle('hidden', loggedInRole === 'Super_Admin');
+            document.getElementById('contactAdminHeaderTitle').innerText = 'กำลังโหลด...';
+            document.getElementById('contactAdminHeaderSubtitle').innerText = '';
+            document.getElementById('contactAdminBody').innerHTML = `<p class="text-slate-400 dark:text-slate-400 text-center py-8">กำลังโหลดข้อความ...</p>`;
+            try {
+                const result = await callBackend('getDataRequestMessages', { threadId: threadId, username: loggedInUsername });
+                renderContactAdminThreadDetail_(result.thread, result.messages || []);
+                if (typeof refreshDashboardStats_ === 'function') refreshDashboardStats_();
+            } catch (e) {
+                document.getElementById('contactAdminBody').innerHTML = `<p class="text-rose-500 text-center py-8">โหลดข้อความไม่สำเร็จ: ${escDataRequestText_(e.message)}</p>`;
+            }
+        }
+
+        // สร้าง HTML ของฟองข้อความ 1 ก้อน — แยกออกมาเป็นฟังก์ชันกลางเพื่อให้ทั้งการเรนเดอร์ครั้งแรก (renderContactAdminThreadDetail_)
+        // และตอนส่งข้อความใหม่แบบ optimistic (sendContactAdminReply_) ใช้โครงสร้าง/สไตล์เดียวกันเป๊ะๆ ไม่ต้องเขียนซ้ำ
+        // opts.pending = true ใช้ตอนข้อความยังส่งไม่เสร็จ (แสดงจางๆ + คำว่า "กำลังส่ง...") opts.elId ใช้ผูก id ไว้หาเจอทีหลัง
+        // opts.readReceiptAt (ถ้ามี) = เวลาที่อีกฝ่าย "อ่านแล้ว" ข้อความนี้ — ใช้แสดงบรรทัดเล็กๆ ใต้ฟองข้อความ เหมือน
+        // Messenger/LINE/Instagram ปกติจะโชว์แค่ใต้ข้อความล่าสุดของตัวเองอันเดียว (คำนวณตำแหน่งไว้ที่ renderContactAdminThreadDetail_)
+        function contactAdminBubbleHtml_(m, opts) {
+            opts = opts || {};
+            const mine = String(m.senderUsername || '').trim().toLowerCase() === String(loggedInUsername || '').trim().toLowerCase();
+            const align = mine ? 'items-end' : 'items-start';
+            const bubbleCls = mine ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200';
+            const idAttr = opts.elId ? ` id="${opts.elId}"` : '';
+            const pendingCls = opts.pending ? ' opacity-60' : '';
+            const pendingLabel = opts.pending ? ' &middot; <span class="italic">กำลังส่ง...</span>' : '';
+            const readReceiptHtml = opts.readReceiptAt
+                ? `<span class="ca-read-receipt text-[9px] text-slate-400 dark:text-slate-500 px-1">อ่านแล้ว &middot; ${formatContactAdminTimestamp_(opts.readReceiptAt)}</span>` : '';
+            return `
+                <div${idAttr} class="flex flex-col ${align} gap-0.5 ca-bubble-enter${pendingCls}">
+                    <span class="text-[10px] text-slate-400 dark:text-slate-400 px-1">${escDataRequestText_(m.senderUsername)} (${escDataRequestText_(m.senderRole)}) &middot; ${formatContactAdminTimestamp_(m.timestamp)}${pendingLabel}</span>
+                    <div class="${bubbleCls} rounded-xl px-3 py-2 max-w-[85%] whitespace-pre-wrap break-words">${escDataRequestText_(m.messageText)}</div>
+                    ${readReceiptHtml}
+                </div>`;
+        }
+
+        function renderContactAdminThreadDetail_(thread, messages) {
+            document.getElementById('contactAdminHeaderTitle').innerText = thread.subject || 'รายละเอียดคำขอ';
+            const isAdmin = (loggedInRole === 'Super_Admin');
+            document.getElementById('contactAdminHeaderSubtitle').innerHTML = `จาก ${escDataRequestText_(thread.createdByUsername)} (${escDataRequestText_(thread.createdByRole)}) &middot; ${contactAdminStatusBadgeHtml_(thread.status)}`;
+
+            // (feature 2026-09-20) เวลา "อ่านแล้ว" ของอีกฝ่าย — thread.lastReadByAdminAt/lastReadByUserAt มาจาก backend
+            // (ดู handleGetDataRequestMessages_/isDataRequestUnreadFor_ ใน Code.gs) เทียบกับข้อความ "ของตัวเอง" อันล่าสุดสุด
+            // ในห้องนี้อันเดียว (ไม่ใช่ทุกข้อความ) ตามรูปแบบที่แอปแชททั่วไปทำ — ถ้าอีกฝ่ายอ่านหลังเวลาที่ส่งข้อความนั้น ถือว่าอ่านแล้ว
+            const counterpartLastReadAt = isAdmin ? thread.lastReadByUserAt : thread.lastReadByAdminAt;
+            let lastMineIdx = -1;
+            messages.forEach(function (m, i) {
+                const mine = String(m.senderUsername || '').trim().toLowerCase() === String(loggedInUsername || '').trim().toLowerCase();
+                if (mine) lastMineIdx = i;
+            });
+            const bubblesHtml = messages.map(function (m, i) {
+                let readReceiptAt = '';
+                if (i === lastMineIdx && counterpartLastReadAt &&
+                    new Date(counterpartLastReadAt).getTime() >= new Date(m.timestamp).getTime()) {
+                    readReceiptAt = counterpartLastReadAt;
+                }
+                return contactAdminBubbleHtml_(m, { readReceiptAt: readReceiptAt });
+            }).join('');
+
+            const adminStatusControlsHtml = isAdmin ? `
+                <div class="flex justify-end">
+                    <button type="button" onclick="toggleContactAdminThreadStatus_('${thread.threadId}', '${thread.status === 'closed' ? 'open' : 'closed'}')" class="text-[11px] font-semibold ${thread.status === 'closed' ? 'text-emerald-600 hover:text-emerald-700' : 'text-slate-500 hover:text-rose-600'} transition-colors">
+                        ${thread.status === 'closed' ? 'เปิดเรื่องนี้อีกครั้ง' : 'ปิดเรื่องนี้'}
+                    </button>
+                </div>` : '';
+
+            document.getElementById('contactAdminBody').innerHTML = `
+                <div class="space-y-4">
+                    ${adminStatusControlsHtml}
+                    <div id="caMessagesContainer" class="space-y-3 max-h-[420px] overflow-y-auto p-3 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-700">${bubblesHtml || '<p data-ca-empty class="text-slate-400 text-center py-4">ไม่มีข้อความ</p>'}</div>
+                    <div class="flex gap-2 items-end">
+                        <textarea id="caReplyText" rows="2" placeholder="พิมพ์ข้อความตอบกลับ... (Enter เพื่อส่ง, Shift+Enter ขึ้นบรรทัดใหม่)" class="flex-1 px-3 py-2 text-xs border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-400" onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendContactAdminReply_('${thread.threadId}'); }"></textarea>
+                        <button type="button" id="caSendBtn" onclick="sendContactAdminReply_('${thread.threadId}')" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all shrink-0">ส่ง</button>
+                    </div>
+                </div>`;
+            const container = document.getElementById('caMessagesContainer');
+            if (container) container.scrollTop = container.scrollHeight;
+        }
+
+        // (feature 2026-09-20) เปลี่ยนจาก "ส่งเสร็จแล้วโหลดหน้าข้อความใหม่ทั้งหมด" (openContactAdminThread_) มาเป็นแบบ
+        // optimistic update เหมือนแอปแชททั่วไป (Messenger/LINE/Instagram): เด้งฟองข้อความของตัวเองขึ้นมาทันทีที่กดส่ง
+        // ไม่ต้องรอ backend ตอบกลับก่อน แล้วค่อยยืนยัน/ย้อนกลับตามผลลัพธ์จริงทีหลัง กล่องแชทเดิมไม่ถูกล้าง/โหลดใหม่เลย
+        async function sendContactAdminReply_(threadId) {
+            const textEl = document.getElementById('caReplyText');
+            const sendBtn = document.getElementById('caSendBtn');
+            const message = textEl.value.trim();
+            if (!message) return;
+
+            const container = document.getElementById('caMessagesContainer');
+            const emptyPlaceholder = container ? container.querySelector('[data-ca-empty]') : null;
+            if (emptyPlaceholder) emptyPlaceholder.remove();
+            // ข้อความใหม่ที่กำลังจะส่งนี้ อีกฝ่ายยังไม่เคยเห็นแน่ๆ ดังนั้นป้าย "อ่านแล้ว" ที่เคยติดอยู่ใต้ข้อความก่อนหน้าของเรา
+            // ต้องหายไปก่อน (ย้ายไปติดข้อความใหม่แทนก็ต่อเมื่ออีกฝ่ายอ่านข้อความนี้จริง ซึ่งจะเห็นได้ตอนเปิด thread นี้ใหม่อีกครั้ง)
+            const staleReadReceipt = container ? container.querySelector('.ca-read-receipt') : null;
+            if (staleReadReceipt) staleReadReceipt.remove();
+
+            const optimisticElId = 'caPendingMsg' + Date.now();
+            // เก็บข้อมูลข้อความไว้ตัวเดียวใช้ซ้ำทั้งตอนแสดงผลแบบ "กำลังส่ง" และตอนแทนที่ด้วยเวอร์ชันยืนยันแล้วหลังส่งสำเร็จ
+            // (ไม่ใช้วิธี string-replace ข้อความ "กำลังส่ง..." ออกจาก innerHTML ตรงๆ เพราะเบราว์เซอร์อาจแปลง &middot; ที่ใส่ไว้
+            // เป็นตัวอักษร · จริงตอนอ่าน innerHTML กลับมา ทำให้ regex เทียบสตริงเดิมไม่เจอ — สร้าง element ใหม่ทับไปเลยชัวร์กว่า)
+            const messageData = { senderUsername: loggedInUsername, senderRole: loggedInRole, timestamp: new Date().toISOString(), messageText: message };
+            if (container) {
+                container.insertAdjacentHTML('beforeend', contactAdminBubbleHtml_(messageData, { pending: true, elId: optimisticElId }));
+                container.scrollTop = container.scrollHeight;
+            }
+            textEl.value = '';
+            textEl.disabled = true;
+            if (sendBtn) sendBtn.disabled = true;
+
+            try {
+                await callBackend('replyDataRequest', { threadId: threadId, username: loggedInUsername, role: loggedInRole, message: message });
+                // ส่งสำเร็จ: แทนที่ฟองข้อความ "กำลังส่ง..." ด้วยเวอร์ชันยืนยันแล้วทั้งก้อน โดยไม่ต้องโหลดกล่องแชททั้งกล่องใหม่
+                const sentEl = document.getElementById(optimisticElId);
+                if (sentEl) sentEl.outerHTML = contactAdminBubbleHtml_(messageData, { elId: optimisticElId });
+                if (typeof refreshDashboardStats_ === 'function') refreshDashboardStats_();
+            } catch (e) {
+                // ส่งไม่สำเร็จ: เอาฟองข้อความที่ค้างไว้ออก แล้วคืนข้อความกลับไปในกล่องพิมพ์ให้ผู้ใช้ลองส่งใหม่ได้ทันที
+                const failedEl = document.getElementById(optimisticElId);
+                if (failedEl) failedEl.remove();
+                textEl.value = message;
+                showCustomAlert('ส่งข้อความไม่สำเร็จ: ' + e.message);
+            } finally {
+                textEl.disabled = false;
+                if (sendBtn) sendBtn.disabled = false;
+                textEl.focus();
+            }
+        }
+
+        async function toggleContactAdminThreadStatus_(threadId, newStatus) {
+            try {
+                await callBackend('updateDataRequestStatus', { requestingUsername: loggedInUsername, threadId: threadId, status: newStatus });
+                if (typeof refreshDashboardStats_ === 'function') refreshDashboardStats_();
+                openContactAdminThread_(threadId);
+            } catch (e) {
+                showCustomAlert('เปลี่ยนสถานะไม่สำเร็จ: ' + e.message);
             }
         }
 
@@ -5114,6 +5495,40 @@
         // สถานะ Pagination ของแท็บนี้
         let adminUserPage = 1;
         const ADMIN_USERS_PER_PAGE = 10;
+
+        // (feature 2026-09-19) ขอลิงก์ Google Sheet ต้นทางของระบบจาก backend แล้วเปิดแท็บใหม่ — เฉพาะ Super_Admin
+        // (ปุ่มถูกซ่อนไว้ให้ role อื่นมองไม่เห็นอยู่แล้ว ดู enterDashboard() แต่ backend ก็เช็คสิทธิ์ Super_Admin ซ้ำอีกชั้นเสมอ
+        // ไม่ได้ฝากความปลอดภัยไว้กับการซ่อนปุ่มฝั่งหน้าเว็บอย่างเดียว)
+        async function openAdminGoogleSheet() {
+            // แสดง popup รอโหลดทันทีที่กด (แบบเดียวกับ pattern ที่ใช้ทั่วระบบ เช่น ตอนลบชุดข้อมูล/อนุมัติ Super Admin)
+            // เพราะขอลิงก์จาก backend ต้องรอ callBackend ก่อน ไม่ใช่เปิดแท็บใหม่ได้ทันทีที่กดปุ่ม
+            showCustomAlert(`<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-300 py-2"><span class="inline-block animate-spin">⏳</span> กำลังเปิด Google Sheet กรุณารอสักครู่...</div>`);
+            try {
+                const result = await callBackend('getAdminSheetUrl', { requestingUsername: loggedInUsername });
+                if (!result.sheetUrl) throw new Error('ไม่ได้รับลิงก์ Google Sheet กลับมาจากระบบ');
+
+                // (เหมือน fix v155 ของฟีเจอร์ "พิมพ์รายงาน") window.open() ที่เรียกหลัง await เบราว์เซอร์บางตัว/ตัวบล็อกโฆษณา
+                // อาจบล็อกเงียบๆ โดยคืนค่า null โดยไม่ throw error เลย ต้องเช็คก่อนถือว่าสำเร็จ ไม่งั้น log จะโกหกผู้ใช้ว่าเปิดสำเร็จ
+                // (fix) เดิมใส่ 'noopener' เป็น windowFeatures ด้วย — แต่ Chrome/Firefox ออกแบบให้ window.open() คืนค่า null
+                // เสมอเมื่อมี 'noopener' อยู่ ไม่ว่าจะเปิดสำเร็จจริงหรือไม่ก็ตาม (ตัดการอ้างอิงหน้าต่างใหม่ทิ้งไปตั้งใจ) ทำให้เช็ค
+                // if (!sheetWindow) ด้านล่างเข้าใจผิดว่าโดนบล็อกทุกครั้ง ทั้งที่เปิดสำเร็จจริง (พิสูจน์แล้วจากการทดสอบจริง
+                // เห็นแท็บใหม่เปิดขึ้นมาจริง แต่ระบบยังขึ้น popup แจ้งว่าโดนบล็อกอยู่ดี) ตัด 'noopener' ออกให้ตรงกับฟีเจอร์
+                // "พิมพ์รายงาน" ต้นแบบที่ก็อปมา (ไม่ได้ใส่ noopener เช่นกัน) เช็คค่าที่คืนมาจึงจะสะท้อนผลจริงถูกต้อง
+                const sheetWindow = window.open(result.sheetUrl, '_blank');
+                if (!sheetWindow) {
+                    showCustomAlert('เบราว์เซอร์บล็อกหน้าต่างป๊อปอัปสำหรับเปิด Google Sheet กรุณาอนุญาต Pop-up สำหรับเว็บไซต์นี้ในเบราว์เซอร์ (ไอคอนแจ้งเตือนมักขึ้นที่แถบที่อยู่ URL) แล้วลองใหม่');
+                    pushLog('ERROR', 'เปิด Google Sheet ไม่สำเร็จ: เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป (Pop-up Blocked) — กรุณาอนุญาต Pop-up แล้วลองใหม่');
+                    return;
+                }
+                // (แก้ตามที่แจ้ง) เดิมปิด popup เงียบๆ ทันทีที่สำเร็จ ไม่มีข้อความยืนยันอะไรเลย ผู้ใช้อาจไม่ทันสังเกตว่าแท็บใหม่เปิดขึ้นมาแล้วจริง
+                // (เช่นแท็บใหม่เปิดซ่อนอยู่ด้านหลังแท็บปัจจุบัน) เปลี่ยนเป็นโชว์ข้อความยืนยันแทนการปิดเงียบๆ ให้ชัดเจนขึ้น
+                showCustomAlert('เปิด Google Sheet ในแท็บใหม่เรียบร้อยแล้ว กรุณาตรวจสอบแท็บที่เปิดขึ้นมา');
+                pushLog('INFO', 'เปิด Google Sheet ต้นทางของระบบในแท็บใหม่');
+            } catch (err) {
+                pushLog('ERROR', `เปิด Google Sheet ไม่สำเร็จ: ${err.message}`);
+                showCustomAlert("เปิด Google Sheet ไม่สำเร็จ: " + err.message);
+            }
+        }
 
         async function openAdminUserPanel() {
             // แปลงจาก Popup มาเป็นแท็บฝังในหน้าแล้ว (ดู #sectionUserManagement) — เรียก showAppSection_ ก่อนเพื่อสลับไปแท็บนี้ ส่วนที่เหลือของฟังก์ชันนี้ (โหลด/แสดงข้อมูล) ยังทำงานเหมือนเดิมทุกจุด

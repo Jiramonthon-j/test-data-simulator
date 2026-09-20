@@ -1,23 +1,32 @@
 /**
  * ============================================================================
- * Rule Dispatcher (Phase 2) — ต้นแบบ (ยังไม่ได้เชื่อมเข้า handleGenerate_ จริงใน Code.gs)
+ * Rule Dispatcher (Phase 2) — เชื่อมเข้า handleGenerate_ จริงใน Code.gs แล้ว (ผ่าน branch useRuleCompiler)
  * ----------------------------------------------------------------------------
- * รับ JSON Rules ที่ buildRuleCompilerPrompt_() (ดู RuleCompilerPrompt.gs) ให้ Gemini แปลไว้แล้ว
- * มาสุ่มค่าเองล้วนๆ ด้วยโค้ดตรงนี้ — ไม่มีการเรียก Gemini อีกเลยแม้แต่ครั้งเดียวในไฟล์นี้ทั้งไฟล์
+ * (แก้ไข 2026-09-19) คอมเมนต์ชุดนี้เดิมเขียนไว้ว่า "ต้นแบบ ยังไม่ได้เชื่อมเข้าระบบจริง" ซึ่งไม่ตรงกับความจริงมาสักพักแล้ว —
+ * Code.gs (handleGenerate_) เรียก generateRowsFromRules_() จริงทุกครั้งที่ผู้ใช้ติ๊ก "Rule-Based Mode" แก้คอมเมนต์ให้ตรงแล้ว
+ *
+ * รับ JSON Rules มาสุ่มค่าเองล้วนๆ ด้วยโค้ดตรงนี้ — ไม่มีการเรียก Gemini อีกเลยแม้แต่ครั้งเดียวในไฟล์นี้ทั้งไฟล์
  * (fix 2026-09-07: เดิมคอลัมน์ประเภท "ai_context" ต้องเรียก Gemini ซ้ำอีก 1 ครั้งหลังสุ่มครบทุกแถว ผ่าน
  * fillAiContextColumns_ ทำให้ Hybrid ยิง Gemini 3 ครั้ง/รอบ แพงกว่าระบบเดิม (buildSmartPrompt_) ที่ใช้ 2 ครั้ง/รอบ
- * แก้โดยให้ Gemini เขียน "แม่แบบ" เนื้อหาจริงมาตั้งแต่ compileRules_ (ครั้งเดียว) แล้วโค้ดตรงนี้สุ่มเลือก+แทนค่า
+ * แก้โดยให้ผู้เขียน Rules เขียน "แม่แบบ" เนื้อหาจริงมาให้ตั้งแต่ต้น แล้วโค้ดตรงนี้สุ่มเลือก+แทนค่า
  * เอง — ดู genAiContextFromTemplate_ ท้ายไฟล์ ฟังก์ชัน fillAiContextColumns_ เดิมถูกลบออกแล้ว)
  *
- * ใช้ฟังก์ชันจริงที่มีอยู่แล้วใน Code.gs โดยไม่เขียนซ้ำ: callGemini_, extractJsonFromAiText_,
+ * (แก้ไข 2026-09-19) ที่มาของ "JSON Rules" ที่ป้อนเข้า generateRowsFromRules_ เปลี่ยนไปจากเดิมด้วย:
+ * เดิม compileRules_() ด้านล่างเรียก Gemini 1 ครั้งแปลเงื่อนไขที่ผู้ใช้พิมพ์เป็น Rules JSON (ยังมี AI ผสมอยู่ 1 จุด)
+ * ตอนนี้ handleGenerate_ ใน Code.gs เปลี่ยนมาเรียก getRuleTemplateForTable_() (นิยามท้ายไฟล์นี้) แทน — อ่านกฎที่มนุษย์
+ * (ผู้ดูแลระบบ) เขียนไว้ล่วงหน้าในชีต RuleTemplates โดยตรง เทียบชื่อตารางเป๊ะๆ ไม่มี AI แทรกอยู่เลยตลอดทั้ง flow
+ * compileRules_()/buildRuleCompilerPrompt_() (RuleCompilerPrompt.gs) ยังเก็บไว้เป็นโค้ดสำรอง "ไม่มีจุดไหนเรียกใช้จริงแล้ว"
+ * (คอมเมนต์หัวไฟล์ RuleCompilerPrompt.gs อัปเดตให้ตรงสถานะนี้ไว้แล้วเช่นกัน)
+ *
+ * ใช้ฟังก์ชันจริงที่มีอยู่แล้วใน Code.gs โดยไม่เขียนซ้ำ: callGemini_, extractJsonFromAiText_, getSheet_,
  * logActivity_, getTodayContextStr_ — ไฟล์นี้แค่ "เสริม" ไม่ได้แก้ของเดิม
  *
  * จุด "จับ" จริงของทั้งระบบอยู่ที่ runGenerator_() บรรทัดล่าง — เป็น dictionary lookup ตรงๆ ตามชื่อ
- * generator ที่ Gemini ตอบมา ไม่มีการอ่าน/ตีความประโยคภาษาใดๆ ในไฟล์นี้เลยแม้แต่บรรทัดเดียว
+ * generator ที่ระบุมา ไม่มีการอ่าน/ตีความประโยคภาษาใดๆ ในไฟล์นี้เลยแม้แต่บรรทัดเดียว
  *
- * ตัวอย่างการเรียกใช้แบบครบวงจร (ยังเป็นทางเลือกเสริม ไม่ได้ผูกกับปุ่ม "สร้างข้อมูลทดสอบ" เดิม):
- *   const rules = compileRules_(p);                            // เรียก Gemini ครั้งเดียวทั้งหมด (Rule Compiler)
- *   const rows = generateRowsFromRules_(rules, rowsRequested); // สุ่มด้วยโค้ดล้วนๆ ไม่เรียก Gemini เลย (รวม ai_context)
+ * Flow จริงที่ใช้งานอยู่ตอนนี้ (เรียกจาก handleGenerate_ ใน Code.gs โดยตรง):
+ *   const rules = getRuleTemplateForTable_(p.tableName);       // อ่านกฎจากชีต RuleTemplates ล้วนๆ ไม่เรียก Gemini เลย
+ *   const rows  = generateRowsFromRules_(rules, rowsRequested); // สุ่มด้วยโค้ดล้วนๆ ไม่เรียก Gemini เลย (รวม ai_context)
  * ============================================================================
  */
 
@@ -345,4 +354,120 @@ function genAiContextFromTemplate_(rule, currentRow) {
 
   const chosen = pool[Math.floor(Math.random() * pool.length)];
   return fillTemplatePlaceholders_(chosen, currentRow);
+}
+
+// ---------------------------------------------------------------------------
+// (feature 2026-09-19, แก้ไขรอบ 2 เป็น match ด้วย column_name) แหล่งกฎแบบไม่ใช้ AI สำหรับ Rule-Based Mode
+// แทนที่ compileRules_ ในฐานะ "Phase 1" ของโหมดนี้
+// ---------------------------------------------------------------------------
+/**
+ * อ่านชีต "RuleTemplates" (ผู้ดูแลระบบเขียนกฎการสุ่มแต่ละ "ชื่อคอลัมน์" ไว้ล่วงหน้า) แล้วไล่หากฎทีละคอลัมน์
+ * ตามรายชื่อที่ระบุมา (columnNames — ปกติมาจาก parseDdlColumns_(p.ddlScript) ใน Code.gs) ประกอบเป็น
+ * Rules JSON รูปแบบเดียวกับที่ compileRules_() เคยให้ Gemini แปลมา ({"columns":[{name, generator, ...params}]})
+ * เพื่อส่งต่อให้ generateRowsFromRules_() ใช้ได้ทันทีโดยไม่ต้องแก้ dispatcher เลยแม้แต่บรรทัดเดียว
+ *
+ * (แก้ไข 2026-09-19) เดิมออกแบบให้ match ด้วย "table_name" ทั้งตาราง (เขียนกฎยกชุดต่อ 1 ตาราง) แต่พบว่าทำให้
+ * เขียนกฎซ้ำซ้อนมากถ้าหลายตารางมีคอลัมน์ชื่อเดียวกัน (เช่น email, citizen_id, created_at) — เปลี่ยนมา match
+ * ด้วย "ชื่อคอลัมน์" แทน เขียนกฎครั้งเดียวใช้ซ้ำได้ทุกตาราง (แถวที่เว้น table_name ว่างไว้ = กฎกลาง/global)
+ * พร้อมรองรับ "override เฉพาะตาราง" (แถวที่ใส่ table_name ด้วย) สำหรับกรณีชื่อคอลัมน์เดียวกันแต่ความหมาย/ช่วงค่า
+ * ไม่เหมือนกันข้ามตาราง (เช่น "amount" ในตาราง insurance ควรสุ่มคนละช่วงกับ "amount" ในตาราง pos) — ลำดับการค้นหา
+ * ต่อคอลัมน์คือ: 1) หาแถว override ที่ table_name+column_name ตรงกันเป๊ะก่อน 2) ถ้าไม่เจอค่อยหาแถว global
+ * (table_name ว่าง) ที่ column_name ตรงกัน — เจอแบบไหนก่อนใช้แบบนั้น ไม่ผสมกัน
+ *
+ * เทียบชื่อ (ทั้ง table_name และ column_name) แบบ trim + lowercase "ตรงเป๊ะ" เท่านั้น ไม่ fuzzy match แบบ
+ * getColumnSchemaFor_ ใน Code.gs เพราะจุดประสงค์ต่างกัน: ที่นี่ต้องรู้ชัดว่า "ใช่คอลัมน์นี้จริงหรือไม่" ก่อนเอาไป
+ * สร้างข้อมูลจริง ไม่ใช่แค่ "น่าจะใกล้เคียง" — กันการดึงกฎผิดคอลัมน์ไปใช้โดยไม่มีใครรู้ตัว
+ *
+ * โครงสร้างชีตที่ setupSheet() สร้างหัวตารางให้อัตโนมัติ: table_name | column_name | generator | param_json | notes
+ * - 1 แถว = 1 คอลัมน์ — table_name เว้นว่าง = กฎกลาง (global) ใช้ได้ทุกตาราง, ใส่ table_name = กฎเฉพาะตารางนั้น (override)
+ * - generator ต้องเป็นชื่อใน GENERATORS_ ด้านบนเท่านั้น (พิมพ์ผิด/ไม่รู้จัก จะไม่ทำให้ generate ทั้งชุดพัง แต่
+ *   runGenerator_ จะ log RULE_GENERATOR_UNKNOWN แล้วใส่ null แทนเฉพาะคอลัมน์นั้น เหมือนพฤติกรรมเดิมทุกประการ)
+ * - param_json คือ JSON string ของพารามิเตอร์เฉพาะของ generator นั้นๆ (เว้นว่างได้ถ้า generator ไม่ต้องการพารามิเตอร์)
+ *   ตัวอย่างตาม generator แต่ละแบบ:
+ *     enum            -> {"values": ["A","B","C"]}
+ *     number_range    -> {"min": 100, "max": 5000, "decimals": 2}
+ *     date_range      -> {"start": "2025-01-01", "end": "2026-12-31"}
+ *     pattern         -> {"pattern": "EMP-####"}            (# = เลขสุ่ม 0-9, @ = ตัวอักษรสุ่ม A-Z)
+ *     sequential      -> {"start": 1, "digits": 4, "prefix": "EMP-2026-"}   (digits/prefix ไม่ใส่ก็ได้)
+ *     email_from_name -> {"nameColumn": "full_name"}         (ชื่อคอลัมน์อื่นในตารางเดียวกันที่จะเอาไปแปลงเป็นอีเมล)
+ *     percent_of      -> {"baseColumn": "premium", "percentMin": 5, "percentMax": 10}
+ *     thai_citizen_id / phone_th -> ปล่อย param_json ว่างไว้ได้เลย (ไม่ต้องมีพารามิเตอร์)
+ *     ai_context      -> {"templates": ["ข้อความ {{ชื่อคอลัมน์อื่น}} ..."]}
+ *                        หรือ {"variants": [{"when": {"col":"val"}, "templates": [...]}]} (ดูรายละเอียด when ที่ pickAiContextTemplatePool_)
+ * - notes (ไม่บังคับ) ไว้จดบันทึกเหตุผล/ที่มาของกฎแต่ละแถวไว้ให้คนอื่นอ่านเข้าใจ ไม่ถูกอ่านโดยโค้ดนี้เลย
+ * - ลำดับคอลัมน์ในผลลัพธ์สุดท้ายเรียงตามลำดับใน columnNames ที่ส่งเข้ามา (คือลำดับใน DDL Script ที่ผู้ใช้พิมพ์) เสมอ
+ *   ไม่ได้อิงลำดับแถวในชีตนี้อีกต่อไป (เพราะตอนนี้ 1 request อาจหยิบกฎจากคนละแถว/คนละที่ในชีตมาประกอบกัน)
+ *
+ * @param {string} tableName    ค่าจากช่อง "ชื่อตาราง (Table Name)" ในหน้าเว็บ (p.tableName) — ใช้เช็ค override เท่านั้น
+ * @param {string[]} columnNames  รายชื่อคอลัมน์ที่ต้องมีทั้งหมด (จาก parseDdlColumns_(p.ddlScript) — คง case ต้นฉบับไว้)
+ * @return {{columns: Array, missing: string[]}}  missing = รายชื่อคอลัมน์ที่หากฎไม่เจอเลยทั้ง override และ global
+ *                                                  (ไม่ throw error ในเคสนี้ เพราะ "หาไม่เจอ" เป็นผลลัพธ์ปกติที่คาดไว้แล้ว
+ *                                                  ให้ handleGenerate_ ตัดสินใจแจ้ง popup ต่อผู้ใช้เอง)
+ * @throws {Error} ถ้าเจอแถวที่ตรงคอลัมน์ แต่ข้อมูลผิดรูปแบบ (ไม่ระบุ generator หรือ param_json parse ไม่ผ่าน)
+ *                  — ตั้งใจให้ throw ตรงๆ ในเคสนี้ เพราะเป็นความผิดพลาดตอนเขียนชีตที่ต้องแก้ก่อนใช้งาน
+ *                  ไม่ควรปล่อยให้สุ่มค่าผิดๆ ออกไปเงียบๆ โดยไม่มีใครรู้ตัว
+ */
+function getRuleTemplateForColumns_(tableName, columnNames) {
+  const normTable = String(tableName || '').trim().toLowerCase();
+
+  const sh = getSheet_(SHEET_NAMES.RULE_TEMPLATES);
+  const data = sh.getDataRange().getValues();
+  if (data.length < 2) return { columns: [], missing: columnNames.slice() }; // ชีตยังว่างเปล่า (มีแค่หัวตาราง) — ทุกคอลัมน์ถือว่า "ไม่พบ"
+
+  const header = data[0];
+  const idx = {
+    table: header.indexOf('table_name'),
+    column: header.indexOf('column_name'),
+    generator: header.indexOf('generator'),
+    param: header.indexOf('param_json')
+  };
+  if (idx.table === -1 || idx.column === -1 || idx.generator === -1 || idx.param === -1) {
+    throw new Error('ชีต RuleTemplates หัวตารางไม่ครบ (ต้องมีอย่างน้อย table_name, column_name, generator, param_json) — รัน setupSheet() ใหม่ หรือแก้หัวตารางให้ตรง');
+  }
+
+  // แยกเป็น 2 map ตั้งแต่รอบเดียว: override (เฉพาะตาราง) กับ global (ใช้ได้ทุกตาราง) — ค้น O(1) ต่อคอลัมน์แทนการวน loop ซ้ำทุกคอลัมน์
+  // ถ้ามีแถวซ้ำกันเป๊ะ (table_name+column_name เดียวกัน 2 แถว หรือ global column_name ซ้ำ 2 แถว) แถวที่อยู่ล่างกว่าในชีตจะทับแถวบน
+  const overrideMap = {};
+  const globalMap = {};
+  for (let i = 1; i < data.length; i++) {
+    const rowTable = String(data[i][idx.table] || '').trim().toLowerCase();
+    const rowColumn = String(data[i][idx.column] || '').trim().toLowerCase();
+    if (!rowColumn) continue; // แถวที่ไม่ได้กรอกชื่อคอลัมน์เลย ข้ามไปเฉยๆ (ถือว่ายังเขียนไม่เสร็จ)
+    const entry = { raw: data[i], sheetRow: i + 1 }; // sheetRow ไว้ชี้ตำแหน่งจริงถ้าต้อง throw error บอกจุดผิด
+    if (rowTable) {
+      overrideMap[rowTable + ' ' + rowColumn] = entry;
+    } else {
+      globalMap[rowColumn] = entry;
+    }
+  }
+
+  const columns = [];
+  const missing = [];
+
+  columnNames.forEach(function (colName) {
+    const normCol = String(colName || '').trim().toLowerCase();
+    const match = overrideMap[normTable + ' ' + normCol] || globalMap[normCol];
+    if (!match) { missing.push(colName); return; }
+
+    const generator = String(match.raw[idx.generator] || '').trim();
+    if (!generator) {
+      throw new Error('ชีต RuleTemplates แถวที่ ' + match.sheetRow + ' (คอลัมน์ "' + colName + '") ไม่ได้ระบุ generator — กรุณาแก้ก่อนใช้งาน');
+    }
+    const paramRaw = String(match.raw[idx.param] || '').trim();
+    let params = {};
+    if (paramRaw) {
+      try {
+        params = JSON.parse(paramRaw);
+      } catch (err) {
+        throw new Error('ชีต RuleTemplates แถวที่ ' + match.sheetRow + ' (คอลัมน์ "' + colName + '") param_json ไม่ใช่ JSON ที่ถูกต้อง: ' + err.message);
+      }
+    }
+    // ใช้ colName ตาม case ต้นฉบับจาก DDL เสมอ (ไม่ใช่ตามที่พิมพ์ไว้ในชีต) เพราะขั้นตอนถัดไป (reconcileColumns_/
+    // reorderRowsByPreferredColumns_ ใน Code.gs) เทียบชื่อคอลัมน์แบบตรงตัวอักษรกับ DDL เป๊ะ ถ้าใช้ case จากชีตแล้วสะกด
+    // ไม่ตรง DDL เป๊ะ (เช่น "Email" ในชีต vs "email" ใน DDL) จะถูกตัดทิ้งเงียบๆ ตอน reconcile โดยไม่มีใครรู้ตัว
+    // params มาก่อนใน Object.assign เพื่อให้ name/generator ที่มาจาก DDL/ชีตจริงชนะเสมอ กันเผลอใส่ "name"/"generator" ปนอยู่ใน param_json เอง
+    columns.push(Object.assign({}, params, { name: colName, generator: generator }));
+  });
+
+  return { columns: columns, missing: missing };
 }
