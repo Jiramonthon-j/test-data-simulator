@@ -59,7 +59,7 @@ const MAX_ROWS_PER_GENERATE = 300;
 
 // ตัวเลขเวอร์ชันไว้เช็คว่า deployment ที่รันอยู่จริงเป็นโค้ดล่าสุดหรือไม่
 // วิธีเช็ค: เปิด <BACKEND_URL>?action=ping ในเบราว์เซอร์ตรงๆ แล้วดูค่า "version" ในผลลัพธ์
-const BACKEND_VERSION = 'v75-rule-compiler-template-shuffle-cycle-2026-09-10';
+const BACKEND_VERSION = 'v76-session-logout-fix-2026-10-02';
 
 // Super_Admin "หลัก" ของระบบ — บัญชีที่ setupSheet() สร้างให้อัตโนมัติตอนติดตั้งครั้งแรก (ดู setupSheet())
 // ใช้เทียบแบบ normalizeUsername_() เสมอ (ไม่สนตัวพิมพ์เล็ก/ใหญ่) เพื่อ (1) กันไม่ให้บัญชีนี้ส่งคำขอลบบัญชีตัวเองได้
@@ -1737,12 +1737,16 @@ function isGmailAddress_(email) {
 // ---------------------------------------------------------------------------
 const SESSION_DURATION_SECONDS = 600; // Auto Logout แบบ idle timeout — ไม่มี action เกิน 10 นาที (ทดสอบผ่านที่ 1 นาทีแล้ว ปรับเป็นค่าใช้งานจริง) ต้องตรงกับ IDLE_TIMEOUT_MS ฝั่ง Final.html เสมอ
 const SESSION_CACHE_PREFIX_ = 'SESSION_';
+// (fix) เผื่อเวลาฝั่งเซิร์ฟเวอร์เพิ่มอีก 2 นาที — ตัวจับเวลา 10 นาทีฝั่งหน้าเว็บเป็นตัวตัดสิน Auto Logout จริง
+// ส่วน token ในแคชต้องอยู่นานกว่าเล็กน้อย กันกรณี renew ถูก throttle/เน็ตช้าแล้ว token ฝั่งเซิร์ฟเวอร์หมดก่อนหน้าเว็บ
+const SESSION_SERVER_GRACE_SECONDS_ = 120;
+const SESSION_CACHE_TTL_SECONDS_ = SESSION_DURATION_SECONDS + SESSION_SERVER_GRACE_SECONDS_;
 
 // สร้าง session token ใหม่ ผูกกับ username/role แล้วเก็บลง CacheService (หมดอายุอัตโนมัติตาม SESSION_DURATION_SECONDS)
 function generateSessionToken_(username, role) {
   const token = Utilities.getUuid();
   try {
-    CacheService.getScriptCache().put(SESSION_CACHE_PREFIX_ + token, JSON.stringify({ username: username, role: role }), SESSION_DURATION_SECONDS);
+    CacheService.getScriptCache().put(SESSION_CACHE_PREFIX_ + token, JSON.stringify({ username: username, role: role }), SESSION_CACHE_TTL_SECONDS_);
   } catch (e) {
     // ถ้าสร้าง session cache ไม่สำเร็จ ไม่ควรทำให้ login ทั้งหมดล้มเหลว แค่ไม่มี token ให้ใช้ "จดจำการเข้าสู่ระบบ" เท่านั้น
     return null;
@@ -1752,13 +1756,25 @@ function generateSessionToken_(username, role) {
 
 // ตรวจสอบว่า token ยังใช้ได้จริงหรือไม่ (ยังไม่หมดอายุใน CacheService) คืนค่า {username, role} ถ้าใช้ได้ ไม่งั้นคืน null
 function validateSessionToken_(token) {
-  if (!token) return null;
+  const r = checkSessionToken_(token);
+  return r.status === 'OK' ? r.session : null;
+}
+
+// (fix: เด้งออกก่อนครบ 10 นาที) แยกให้ชัดว่า "token หมดอายุจริง" (EXPIRED) กับ "เช็คไม่ได้ชั่วคราว" (ERROR เช่น CacheService สะดุด)
+// เดิมทั้งสองกรณีคืน null เหมือนกัน หน้าเว็บเลยเข้าใจว่า session หมดอายุแล้ว Auto Logout ทิ้งทั้งที่ผู้ใช้ยังใช้งานอยู่
+function checkSessionToken_(token) {
+  if (!token) return { status: 'EXPIRED', session: null };
+  let raw;
   try {
-    const raw = CacheService.getScriptCache().get(SESSION_CACHE_PREFIX_ + token);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    raw = CacheService.getScriptCache().get(SESSION_CACHE_PREFIX_ + token);
   } catch (e) {
-    return null;
+    return { status: 'ERROR', session: null };
+  }
+  if (!raw) return { status: 'EXPIRED', session: null };
+  try {
+    return { status: 'OK', session: JSON.parse(raw) };
+  } catch (e) {
+    return { status: 'EXPIRED', session: null };
   }
 }
 
@@ -1776,32 +1792,38 @@ function invalidateSessionToken_(token) {
 // (Auto Logout แบบนี้คือ idle timeout: อายุ session จะยืดออกไปเรื่อยๆ ตราบใดที่ยังมี action เกิดขึ้น จะหมดอายุก็ต่อเมื่อไม่มี action เลยนานเกินกำหนด)
 // ไม่ต่ออายุให้ถ้า token เดิมหมดอายุไปแล้วจริง (validateSessionToken_ คืน null) เพื่อไม่ให้ session ที่หมดอายุไปแล้วฟื้นกลับมาใช้ได้อีก
 function renewSessionToken_(token) {
-  const session = validateSessionToken_(token);
-  if (!session) return null;
+  const r = checkSessionToken_(token);
+  if (r.status !== 'OK') return r;
   try {
-    CacheService.getScriptCache().put(SESSION_CACHE_PREFIX_ + token, JSON.stringify(session), SESSION_DURATION_SECONDS);
+    CacheService.getScriptCache().put(SESSION_CACHE_PREFIX_ + token, JSON.stringify(r.session), SESSION_CACHE_TTL_SECONDS_);
   } catch (e) {
-    return null;
+    // token ยังใช้ได้อยู่จริง แค่ต่ออายุรอบนี้ไม่สำเร็จ — ไม่ถือว่าหมดอายุ ให้หน้าเว็บลองใหม่รอบถัดไป
+    return { status: 'ERROR', session: r.session };
   }
-  return session;
+  return r;
+}
+
+function sessionErrorResponse_(status) {
+  if (status === 'ERROR') {
+    return { success: false, errorCode: 'SESSION_CHECK_FAILED', error: 'ตรวจสอบ session ไม่สำเร็จชั่วคราว กรุณาลองใหม่' };
+  }
+  return { success: false, errorCode: 'SESSION_EXPIRED', error: 'Session หมดอายุหรือไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่' };
 }
 
 // ให้หน้าเว็บเรียกตอนโหลดหน้าใหม่ (จาก token ที่เก็บไว้ใน localStorage) เพื่อเช็คว่ายัง "จดจำการเข้าสู่ระบบ" ได้อยู่ไหม
 function handleValidateSession_(p) {
-  const session = validateSessionToken_(p.token);
-  if (!session) {
-    return { success: false, error: 'Session หมดอายุหรือไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่' };
-  }
-  return { success: true, username: session.username, role: session.role };
+  // ต่ออายุไปด้วยเลยตอนรีเฟรชหน้า — เดิมแค่เช็คเฉยๆ ทำให้ token ฝั่งเซิร์ฟเวอร์หมดก่อนตัวจับเวลา 10 นาทีที่หน้าเว็บเพิ่งเริ่มนับใหม่
+  const r = renewSessionToken_(p.token);
+  if (r.status === 'EXPIRED') return sessionErrorResponse_('EXPIRED');
+  if (!r.session) return sessionErrorResponse_('ERROR');
+  return { success: true, username: r.session.username, role: r.session.role, expiresInSeconds: SESSION_DURATION_SECONDS };
 }
 
 // ให้หน้าเว็บเรียกเป็นระยะๆ ตอนตรวจพบว่าผู้ใช้มีการใช้งานจริง (idle timeout) เพื่อยืดอายุ session ออกไปอีก
 function handleRenewSession_(p) {
-  const session = renewSessionToken_(p.token);
-  if (!session) {
-    return { success: false, error: 'Session หมดอายุหรือไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่' };
-  }
-  return { success: true, username: session.username, role: session.role, expiresInSeconds: SESSION_DURATION_SECONDS };
+  const r = renewSessionToken_(p.token);
+  if (r.status !== 'OK') return sessionErrorResponse_(r.status);
+  return { success: true, username: r.session.username, role: r.session.role, expiresInSeconds: SESSION_DURATION_SECONDS };
 }
 
 // ให้หน้าเว็บเรียกตอนกด logout ด้วยตนเอง เพื่อล้าง token ทิ้งทันทีไม่ต้องรอหมดอายุเอง

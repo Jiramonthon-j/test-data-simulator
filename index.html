@@ -2053,6 +2053,8 @@
                     // (เชื่อมต่อไม่ได้ / อ่าน response ไม่ได้) ซึ่งไม่มี flag นี้ ใช้แยกแยะว่า error นี้เป็นคำตอบจริงจาก backend หรือแค่ปัญหาเครือข่ายชั่วคราว
                     // (ผู้เรียกใช้ เช่น renewSessionIfNeeded ใช้แยกว่าควรเชื่อว่า session หมดอายุจริงไหม หรือแค่เน็ตกระตุกแล้วไม่ควร Auto Logout ทิ้ง)
                     err.backendResponded = true;
+                    // (fix) ส่งต่อรหัสสาเหตุจาก backend เช่น SESSION_EXPIRED / SESSION_CHECK_FAILED ให้ผู้เรียกแยกได้ว่าหมดอายุจริงหรือแค่สะดุดชั่วคราว
+                    if (json.errorCode) err.errorCode = json.errorCode;
                     // ถ้า backend แนบจำนวนวินาทีที่ถูกล็อกบัญชีมาด้วย (login lockout) ส่งต่อไปให้ผู้เรียกใช้จัดการ เช่น ปิดปุ่ม "เข้าสู่ระบบ" ชั่วคราว
                     if (typeof json.lockedSeconds === 'number') {
                         err.lockedSeconds = json.lockedSeconds;
@@ -2221,6 +2223,12 @@
             renewSessionIfNeeded();
         }
 
+        function isSessionExpiredError(err) {
+            if (!err || !err.backendResponded) return false;
+            if (err.errorCode) return err.errorCode === 'SESSION_EXPIRED';
+            return String(err.message || '').indexOf('Session หมดอายุ') !== -1; // รองรับ backend เวอร์ชันเก่าที่ยังไม่ส่ง errorCode
+        }
+
         async function renewSessionIfNeeded() {
             if (!currentSessionToken) return;
             const now = Date.now();
@@ -2235,7 +2243,9 @@
                 // ยิ่งตอนนี้ callBackend ทุกคำขอมี heartbeat เรียก renewSessionIfNeeded ถี่ขึ้นมาก (ทุก ๆ ~15 วิระหว่างรอ backend คำขอไหนก็ตาม) ยิ่งมีโอกาสเจอปัญหาเครือข่ายชั่วคราวบ่อยขึ้นตามไปด้วย
                 // แก้โดยเชื่อว่า "session หมดอายุจริง" เฉพาะตอนที่ backend ตอบกลับมาจริงๆ ว่าไม่ผ่าน (err.backendResponded === true) เท่านั้น
                 // ถ้าเป็นแค่เชื่อมต่อไม่ได้/อ่านคำตอบไม่ได้ชั่วคราว ให้ปล่อยผ่านรอบนี้ไปเงียบๆ แล้วรอบถัดไป (throttle ทุก 15 วิ) จะลองต่ออายุใหม่เองอัตโนมัติ ไม่ต้อง Auto Logout ทิ้งฟรีๆ
-                if (err.backendResponded) {
+                // (fix: เด้งออกก่อนครบ 10 นาที) เดิม backend ตอบ success:false ด้วยเหตุผลอะไรก็ตาม (เช่น Apps Script สะดุด/CacheService error/โควตาชั่วคราว)
+                // ก็ Auto Logout ทันที ตอนนี้ logout เฉพาะเมื่อ backend ยืนยันว่า token หมดอายุจริง (SESSION_EXPIRED) เท่านั้น
+                if (isSessionExpiredError(err)) {
                     forceSessionLogout();
                 } else {
                     pushLog('WARN', `ต่ออายุ session ไม่สำเร็จชั่วคราว (จะลองใหม่อัตโนมัติ ไม่ Auto Logout): ${err.message}`);
