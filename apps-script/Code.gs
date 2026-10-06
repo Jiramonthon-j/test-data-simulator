@@ -8,7 +8,7 @@
  * วิธีตั้งค่าเบื้องต้น:
  *   1. รันฟังก์ชัน setupSheet() หนึ่งครั้ง (จะขอสิทธิ์เข้าถึง Sheet — กด Allow)
  *      -> จะสร้าง 7 แท็บ: Users, ActivityLogs, GeneratedDatasets, SavedPrompts, GeneratedPromptLogs, ColumnSchemaConfig, QualityScores
- *      -> จะสร้างผู้ใช้เริ่มต้น username: Admin123 / password: SecurePassword!1 (role: Super_Admin)
+ *      -> จะสร้างผู้ใช้เริ่มต้น username: Admin123 / password: Abcd1234@ (role: Super_Admin)
  *   2. Project Settings (รูปเฟือง) > Script Properties > เพิ่มคีย์ GEMINI_API_KEY = <API key ของคุณ>
  *      (ขอฟรีได้ที่ https://aistudio.google.com/apikey — ไม่ต้องผูกบัตรเครดิต มี Free Tier ให้ใช้งานได้เลย)
  *   3. Deploy > New deployment > เลือกประเภท "Web app"
@@ -133,7 +133,7 @@ function setupSheet() {
   sh = getOrCreateSheet_(ss, SHEET_NAMES.DATA_REQUEST_MESSAGES);
   setHeadersIfEmpty_(sh, ['thread_id', 'timestamp', 'sender_username', 'sender_role', 'message_text']);
 
-  SpreadsheetApp.getUi().alert('ตั้งค่าโครงสร้าง Sheet เรียบร้อยแล้ว ✅\n\nUser เริ่มต้น: Admin123 / SecurePassword!1\n\nอย่าลืมตั้งค่า GEMINI_API_KEY ใน Script Properties ก่อนใช้งานจริง (ขอฟรีได้ที่ https://aistudio.google.com/apikey)');
+  SpreadsheetApp.getUi().alert('ตั้งค่าโครงสร้าง Sheet เรียบร้อยแล้ว ✅\n\nUser เริ่มต้น: Admin123 / Abcd1234@\n\nอย่าลืมตั้งค่า GEMINI_API_KEY ใน Script Properties ก่อนใช้งานจริง (ขอฟรีได้ที่ https://aistudio.google.com/apikey)');
 }
 
 // ---------------------------------------------------------------------------
@@ -4919,7 +4919,7 @@ function ensureColumnHeader_(sh, headerName) {
 function seedAdminIfEmpty_(sh) {
   if (sh.getLastRow() <= 1) {
     const salt = generateSalt_();
-    const hash = hashPassword_('SecurePassword!1', salt);
+    const hash = hashPassword_('Abcd1234@', salt);
     sh.appendRow(['Admin123', salt, hash, 'Super_Admin', new Date()]);
   }
 }

@@ -10,6 +10,12 @@
 
 🌐 **Live Demo:** [https://jiramonthon-j.github.io/test-data-simulator/](https://jiramonthon-j.github.io/test-data-simulator/)
 
+**Demo account** (intentionally public so anyone can try the app):
+
+| Username | Password | Role |
+| :--- | :--- | :--- |
+| `Admin123` | `Abcd1234@` | Super Admin |
+
 Built during a cooperative education internship (Jun–Oct 2026) at an insurance company.
 
 ---
