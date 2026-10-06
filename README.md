@@ -93,7 +93,7 @@ Full details: [`docs/DEPLOY_GUIDE.md`](docs/DEPLOY_GUIDE.md)
 ### Login
 
 <p align="center">
-  <a href="docs/images/login_page.png"><img src="docs/images/login_page.png" alt="Login" width="600" /></a>
+  <a href="docs/images/login_page.png"><img src="docs/images/login_page.png" alt="Login" width="800" /></a>
 </p>
 
 ### Mode Comparison
@@ -105,13 +105,13 @@ Full details: [`docs/DEPLOY_GUIDE.md`](docs/DEPLOY_GUIDE.md)
 ### Legacy Mode (AI)
 
 <p align="center">
-  <a href="docs/images/generate_legacy_mode.png"><img src="docs/images/generate_legacy_mode.png" alt="Legacy Mode (AI)" width="700" /></a>
+  <a href="docs/images/generate_legacy_mode.png"><img src="docs/images/generate_legacy_mode.png" alt="Legacy Mode (AI)" width="850" /></a>
 </p>
 
 ### Rule-Based Mode
 
 <p align="center">
-  <a href="docs/images/generate_rulebased_mode.png"><img src="docs/images/generate_rulebased_mode.png" alt="Rule-Based Mode" width="700" /></a>
+  <a href="docs/images/generate_rulebased_mode.png"><img src="docs/images/generate_rulebased_mode.png" alt="Rule-Based Mode" width="850" /></a>
 </p>
 
 ### Quality Gate
@@ -129,7 +129,7 @@ Full details: [`docs/DEPLOY_GUIDE.md`](docs/DEPLOY_GUIDE.md)
 ### SQL Preview
 
 <p align="center">
-  <a href="docs/images/sql_preview.png"><img src="docs/images/sql_preview.png" alt="SQL Preview" width="700" /></a>
+  <a href="docs/images/sql_preview.png"><img src="docs/images/sql_preview.png" alt="SQL Preview" width="850" /></a>
 </p>
 
 ### System ER Diagram

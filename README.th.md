@@ -93,7 +93,7 @@
 ### เข้าสู่ระบบ
 
 <p align="center">
-  <a href="docs/images/login_page.png"><img src="docs/images/login_page.png" alt="เข้าสู่ระบบ" width="600" /></a>
+  <a href="docs/images/login_page.png"><img src="docs/images/login_page.png" alt="เข้าสู่ระบบ" width="800" /></a>
 </p>
 
 ### เปรียบเทียบโหมด
@@ -105,13 +105,13 @@
 ### Legacy Mode (AI)
 
 <p align="center">
-  <a href="docs/images/generate_legacy_mode.png"><img src="docs/images/generate_legacy_mode.png" alt="Legacy Mode (AI)" width="700" /></a>
+  <a href="docs/images/generate_legacy_mode.png"><img src="docs/images/generate_legacy_mode.png" alt="Legacy Mode (AI)" width="850" /></a>
 </p>
 
 ### Rule-Based Mode
 
 <p align="center">
-  <a href="docs/images/generate_rulebased_mode.png"><img src="docs/images/generate_rulebased_mode.png" alt="Rule-Based Mode" width="700" /></a>
+  <a href="docs/images/generate_rulebased_mode.png"><img src="docs/images/generate_rulebased_mode.png" alt="Rule-Based Mode" width="850" /></a>
 </p>
 
 ### Quality Gate
@@ -129,7 +129,7 @@
 ### ตัวอย่าง SQL
 
 <p align="center">
-  <a href="docs/images/sql_preview.png"><img src="docs/images/sql_preview.png" alt="ตัวอย่าง SQL" width="700" /></a>
+  <a href="docs/images/sql_preview.png"><img src="docs/images/sql_preview.png" alt="ตัวอย่าง SQL" width="850" /></a>
 </p>
 
 ### ER Diagram ของระบบ
