@@ -88,15 +88,55 @@
 
 ## 📸 ภาพหน้าจอ
 
-| เข้าสู่ระบบ | เปรียบเทียบโหมด |
-| :---: | :---: |
-| <img src="docs/images/login_page.png" width="400" /> | <img src="docs/images/mode_comparison.png" width="400" /> |
-| **Legacy Mode (AI)** | **Rule-Based Mode** |
-| <img src="docs/images/generate_legacy_mode.png" width="400" /> | <img src="docs/images/generate_rulebased_mode.png" width="400" /> |
-| **Quality Gate** | **ผลลัพธ์บน Dashboard** |
-| <img src="docs/images/quality_gate.png" width="400" /> | <img src="docs/images/dashboard_results.png" width="400" /> |
-| **ตัวอย่าง SQL** | **ER Diagram ของระบบ** |
-| <img src="docs/images/sql_preview.png" width="400" /> | <img src="docs/images/itds_er_diagram.png" width="400" /> |
+*คลิกที่รูปเพื่อเปิดดูขนาดเต็ม*
+
+### เข้าสู่ระบบ
+
+<p align="center">
+  <a href="docs/images/login_page.png"><img src="docs/images/login_page.png" alt="เข้าสู่ระบบ" width="600" /></a>
+</p>
+
+### เปรียบเทียบโหมด
+
+<p align="center">
+  <a href="docs/images/mode_comparison.png"><img src="docs/images/mode_comparison.png" alt="เปรียบเทียบโหมด" width="880" /></a>
+</p>
+
+### Legacy Mode (AI)
+
+<p align="center">
+  <a href="docs/images/generate_legacy_mode.png"><img src="docs/images/generate_legacy_mode.png" alt="Legacy Mode (AI)" width="700" /></a>
+</p>
+
+### Rule-Based Mode
+
+<p align="center">
+  <a href="docs/images/generate_rulebased_mode.png"><img src="docs/images/generate_rulebased_mode.png" alt="Rule-Based Mode" width="700" /></a>
+</p>
+
+### Quality Gate
+
+<p align="center">
+  <a href="docs/images/quality_gate.png"><img src="docs/images/quality_gate.png" alt="Quality Gate" width="600" /></a>
+</p>
+
+### ผลลัพธ์บน Dashboard
+
+<p align="center">
+  <a href="docs/images/dashboard_results.png"><img src="docs/images/dashboard_results.png" alt="ผลลัพธ์บน Dashboard" width="800" /></a>
+</p>
+
+### ตัวอย่าง SQL
+
+<p align="center">
+  <a href="docs/images/sql_preview.png"><img src="docs/images/sql_preview.png" alt="ตัวอย่าง SQL" width="700" /></a>
+</p>
+
+### ER Diagram ของระบบ
+
+<p align="center">
+  <a href="docs/images/itds_er_diagram.png"><img src="docs/images/itds_er_diagram.png" alt="ER Diagram ของระบบ" width="880" /></a>
+</p>
 
 ---
 

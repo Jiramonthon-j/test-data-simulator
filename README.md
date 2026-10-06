@@ -88,15 +88,55 @@ Full details: [`docs/DEPLOY_GUIDE.md`](docs/DEPLOY_GUIDE.md)
 
 ## 📸 Screenshots
 
-| Login | Mode Comparison |
-| :---: | :---: |
-| <img src="docs/images/login_page.png" width="400" /> | <img src="docs/images/mode_comparison.png" width="400" /> |
-| **Legacy Mode (AI)** | **Rule-Based Mode** |
-| <img src="docs/images/generate_legacy_mode.png" width="400" /> | <img src="docs/images/generate_rulebased_mode.png" width="400" /> |
-| **Quality Gate** | **Dashboard Results** |
-| <img src="docs/images/quality_gate.png" width="400" /> | <img src="docs/images/dashboard_results.png" width="400" /> |
-| **SQL Preview** | **System ER Diagram** |
-| <img src="docs/images/sql_preview.png" width="400" /> | <img src="docs/images/itds_er_diagram.png" width="400" /> |
+*Click an image to open it in full size.*
+
+### Login
+
+<p align="center">
+  <a href="docs/images/login_page.png"><img src="docs/images/login_page.png" alt="Login" width="600" /></a>
+</p>
+
+### Mode Comparison
+
+<p align="center">
+  <a href="docs/images/mode_comparison.png"><img src="docs/images/mode_comparison.png" alt="Mode Comparison" width="880" /></a>
+</p>
+
+### Legacy Mode (AI)
+
+<p align="center">
+  <a href="docs/images/generate_legacy_mode.png"><img src="docs/images/generate_legacy_mode.png" alt="Legacy Mode (AI)" width="700" /></a>
+</p>
+
+### Rule-Based Mode
+
+<p align="center">
+  <a href="docs/images/generate_rulebased_mode.png"><img src="docs/images/generate_rulebased_mode.png" alt="Rule-Based Mode" width="700" /></a>
+</p>
+
+### Quality Gate
+
+<p align="center">
+  <a href="docs/images/quality_gate.png"><img src="docs/images/quality_gate.png" alt="Quality Gate" width="600" /></a>
+</p>
+
+### Dashboard Results
+
+<p align="center">
+  <a href="docs/images/dashboard_results.png"><img src="docs/images/dashboard_results.png" alt="Dashboard Results" width="800" /></a>
+</p>
+
+### SQL Preview
+
+<p align="center">
+  <a href="docs/images/sql_preview.png"><img src="docs/images/sql_preview.png" alt="SQL Preview" width="700" /></a>
+</p>
+
+### System ER Diagram
+
+<p align="center">
+  <a href="docs/images/itds_er_diagram.png"><img src="docs/images/itds_er_diagram.png" alt="System ER Diagram" width="880" /></a>
+</p>
 
 ---
 
