@@ -16,6 +16,7 @@
 
 | Username | Password | Role |
 | :--- | :--- | :--- |
+| `Admin123` | `Abcd1234@` | Super Admin |
 | `Test001` | `Abcd12345@` | QA Tester |
 
 Built during a cooperative education internship (Jun–Oct 2026) at an insurance company.
