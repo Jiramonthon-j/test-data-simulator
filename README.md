@@ -93,8 +93,7 @@ Full details: [`docs/DEPLOY_GUIDE.md`](docs/DEPLOY_GUIDE.md)
 ### Login
 
 <p align="center">
-  <a href="docs/images/login_page.png"><img width="2880" height="1524" alt="image" src="https://github.com/user-attachments/assets/ace10219-48fc-435d-92a7-133c078e006e" />
-</a>
+  <a href="https://github.com/user-attachments/assets/ace10219-48fc-435d-92a7-133c078e006e"><img width="700" alt="Login" src="https://github.com/user-attachments/assets/ace10219-48fc-435d-92a7-133c078e006e" /></a>
 </p>
 
 ### Mode Comparison
@@ -106,36 +105,31 @@ Full details: [`docs/DEPLOY_GUIDE.md`](docs/DEPLOY_GUIDE.md)
 ### Legacy Mode (AI)
 
 <p align="center">
-  <a href="docs/images/generate_legacy_mode.png"><img width="1592" height="1158" alt="สกรีนช็อต 2026-09-24 000023" src="https://github.com/user-attachments/assets/dd58cedb-32b3-40d0-8276-20bc469e648a" />
-</a>
+  <a href="https://github.com/user-attachments/assets/dd58cedb-32b3-40d0-8276-20bc469e648a"><img width="800" alt="Legacy Mode (AI)" src="https://github.com/user-attachments/assets/dd58cedb-32b3-40d0-8276-20bc469e648a" /></a>
 </p>
 
 ### Rule-Based Mode
 
 <p align="center">
-  <a href="docs/images/generate_rulebased_mode.png"><img width="1612" height="1148" alt="สกรีนช็อต 2026-09-24 000214" src="https://github.com/user-attachments/assets/eb96d4aa-94ca-496c-97ad-46a12111df0f" />
-</a>
+  <a href="https://github.com/user-attachments/assets/eb96d4aa-94ca-496c-97ad-46a12111df0f"><img width="800" alt="Rule-Based Mode" src="https://github.com/user-attachments/assets/eb96d4aa-94ca-496c-97ad-46a12111df0f" /></a>
 </p>
 
 ### Quality Gate
 
 <p align="center">
-  <a href="docs/images/quality_gate.png"><img width="1240" height="1270" alt="สกรีนช็อต 2026-09-13 134503" src="https://github.com/user-attachments/assets/5de8d5e9-a95b-47de-b923-0f1176eaaee0" />
-</a>
+  <a href="https://github.com/user-attachments/assets/5de8d5e9-a95b-47de-b923-0f1176eaaee0"><img width="520" alt="Quality Gate" src="https://github.com/user-attachments/assets/5de8d5e9-a95b-47de-b923-0f1176eaaee0" /></a>
 </p>
 
 ### Dashboard Results
 
 <p align="center">
-  <a href="docs/images/dashboard_results.png"><img width="2056" height="1102" alt="สกรีนช็อต 2026-09-13 134601" src="https://github.com/user-attachments/assets/67d5a834-75a5-4b6f-9d99-3f8e7125723a" />
-</a>
+  <a href="https://github.com/user-attachments/assets/67d5a834-75a5-4b6f-9d99-3f8e7125723a"><img width="880" alt="Dashboard Results" src="https://github.com/user-attachments/assets/67d5a834-75a5-4b6f-9d99-3f8e7125723a" /></a>
 </p>
 
 ### SQL Preview
 
 <p align="center">
-  <a href="docs/images/sql_preview.png"><img width="2068" height="1154" alt="สกรีนช็อต 2026-09-13 134628" src="https://github.com/user-attachments/assets/ee5cc31f-e466-4e9b-88be-4a08786420d4" />
-</a>
+  <a href="https://github.com/user-attachments/assets/ee5cc31f-e466-4e9b-88be-4a08786420d4"><img width="880" alt="SQL Preview" src="https://github.com/user-attachments/assets/ee5cc31f-e466-4e9b-88be-4a08786420d4" /></a>
 </p>
 
 ### System ER Diagram
