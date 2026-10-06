@@ -68,7 +68,7 @@ Built during a cooperative education internship (Jun–Oct 2026) at an insurance
 └── docs/
     ├── DEPLOY_GUIDE.md        # Setup & deployment guide (Thai)
     ├── PRIVACY_POLICY.md
-    ├── IMPROVEMENT_CHECKLIST.md
+    ├── DEVELOPMENT_LOG.md
     ├── testing/               # Test plans, E2E checklist, demo test cases
     └── images/                # Diagrams & screenshots
 ```

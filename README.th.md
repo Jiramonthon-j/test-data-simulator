@@ -68,7 +68,7 @@
 └── docs/
     ├── DEPLOY_GUIDE.md        # คู่มือติดตั้งและ Deploy
     ├── PRIVACY_POLICY.md
-    ├── IMPROVEMENT_CHECKLIST.md
+    ├── DEVELOPMENT_LOG.md
     ├── testing/               # แผนทดสอบ E2E และเคสสำหรับเดโม
     └── images/                # แผนภาพและภาพหน้าจอ
 ```
@@ -93,7 +93,7 @@
 ### เข้าสู่ระบบ
 
 <p align="center">
-  <a href="docs/images/login_page.png"><img src="docs/images/login_page.png" alt="เข้าสู่ระบบ" width="800" /></a>
+  <a href="https://github.com/user-attachments/assets/ace10219-48fc-435d-92a7-133c078e006e"><img width="700" alt="เข้าสู่ระบบ" src="https://github.com/user-attachments/assets/ace10219-48fc-435d-92a7-133c078e006e" /></a>
 </p>
 
 ### เปรียบเทียบโหมด
@@ -105,31 +105,31 @@
 ### Legacy Mode (AI)
 
 <p align="center">
-  <a href="docs/images/generate_legacy_mode.png"><img src="docs/images/generate_legacy_mode.png" alt="Legacy Mode (AI)" width="850" /></a>
+  <a href="https://github.com/user-attachments/assets/dd58cedb-32b3-40d0-8276-20bc469e648a"><img width="800" alt="Legacy Mode (AI)" src="https://github.com/user-attachments/assets/dd58cedb-32b3-40d0-8276-20bc469e648a" /></a>
 </p>
 
 ### Rule-Based Mode
 
 <p align="center">
-  <a href="docs/images/generate_rulebased_mode.png"><img src="docs/images/generate_rulebased_mode.png" alt="Rule-Based Mode" width="850" /></a>
+  <a href="https://github.com/user-attachments/assets/eb96d4aa-94ca-496c-97ad-46a12111df0f"><img width="800" alt="Rule-Based Mode" src="https://github.com/user-attachments/assets/eb96d4aa-94ca-496c-97ad-46a12111df0f" /></a>
 </p>
 
 ### Quality Gate
 
 <p align="center">
-  <a href="docs/images/quality_gate.png"><img src="docs/images/quality_gate.png" alt="Quality Gate" width="600" /></a>
+  <a href="https://github.com/user-attachments/assets/5de8d5e9-a95b-47de-b923-0f1176eaaee0"><img width="520" alt="Quality Gate" src="https://github.com/user-attachments/assets/5de8d5e9-a95b-47de-b923-0f1176eaaee0" /></a>
 </p>
 
 ### ผลลัพธ์บน Dashboard
 
 <p align="center">
-  <a href="docs/images/dashboard_results.png"><img src="docs/images/dashboard_results.png" alt="ผลลัพธ์บน Dashboard" width="800" /></a>
+  <a href="https://github.com/user-attachments/assets/67d5a834-75a5-4b6f-9d99-3f8e7125723a"><img width="880" alt="ผลลัพธ์บน Dashboard" src="https://github.com/user-attachments/assets/67d5a834-75a5-4b6f-9d99-3f8e7125723a" /></a>
 </p>
 
 ### ตัวอย่าง SQL
 
 <p align="center">
-  <a href="docs/images/sql_preview.png"><img src="docs/images/sql_preview.png" alt="ตัวอย่าง SQL" width="850" /></a>
+  <a href="https://github.com/user-attachments/assets/ee5cc31f-e466-4e9b-88be-4a08786420d4"><img width="880" alt="ตัวอย่าง SQL" src="https://github.com/user-attachments/assets/ee5cc31f-e466-4e9b-88be-4a08786420d4" /></a>
 </p>
 
 ### ER Diagram ของระบบ
