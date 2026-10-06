@@ -1,5 +1,7 @@
 # Intelligent Test Data Simulator (ITDS)
 
+**English** | [ภาษาไทย](README.th.md)
+
 ![Frontend](https://img.shields.io/badge/Frontend-HTML5%20%2F%20JS-E34F26?style=flat-square&logo=html5&logoColor=white)
 ![Backend](https://img.shields.io/badge/Backend-Google%20Apps%20Script-4285F4?style=flat-square&logo=google&logoColor=white)
 ![AI](https://img.shields.io/badge/AI-Gemini%20API-8E75B2?style=flat-square&logo=googlegemini&logoColor=white)
@@ -103,6 +105,12 @@ Full details: [`docs/DEPLOY_GUIDE.md`](docs/DEPLOY_GUIDE.md)
 1. **Database Testing (SQL):** populate test databases with realistic data that follows table constraints.
 2. **UI & API Automation:** feed generated data into automated tests (Playwright, Selenium).
 3. **Boundary & Negative Testing:** create edge-case datasets for complex business logic.
+
+---
+
+## 📄 License
+
+Released under the [MIT License](LICENSE).
 
 ---
 
