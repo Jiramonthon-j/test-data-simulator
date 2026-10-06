@@ -1,3 +1,7 @@
 .DS_Store
 Thumbs.db
 *.tmp
+~$*
+
+# ไฟล์ส่วนตัว (รายงาน/สไลด์/รูปประกอบ) ไม่ขึ้น GitHub
+_archive/

@@ -1,5 +1,8 @@
 # คู่มือ Deploy — Intelligent Test Data Simulator
 
+> **หมายเหตุ (จัดโครงสร้าง repo ใหม่):** ไฟล์ backend ย้ายไปอยู่ในโฟลเดอร์ `apps-script/` แล้ว และหน้าเว็บใช้ `index.html` ที่ root ไฟล์เดียว — ทุกที่ในคู่มือนี้ที่พูดถึง `Final.html` ให้หมายถึง `index.html`
+
+
 ระบบนี้ประกอบด้วย 2 ส่วน: หน้าเว็บ (`Final.html`) ที่คุณเปิดใช้งาน และ backend (`Code.gs`) ที่รันอยู่บน Google Apps Script ผูกกับ Google Sheet ตัวเดียวกัน ทำหน้าที่เก็บ AI API key อย่างปลอดภัย เรียก Gemini API (Google AI Studio — มี Free Tier ไม่ต้องผูกบัตรเครดิต) ตรวจสอบข้อมูล และอ่าน/เขียน Google Sheet ให้ทั้งหมด
 
 ## ภาพรวมสถาปัตยกรรม
