@@ -8,8 +8,9 @@
 
 | | |
 | :--- | :--- |
-| หน้าเว็บ | https://jiramonthon-j.github.io/test-data-simulator/ |
+| หน้าเว็บ | https://itds-qa.github.io/ |
 | โค้ด | GitHub `Jiramonthon-j/test-data-simulator` (Public) |
+| ที่เก็บหน้าเว็บ | GitHub `itds-qa/itds-qa.github.io` (มีแค่ `index.html` ชุดเดียวกับใน repo โค้ด) |
 | Backend | Google Apps Script ในบัญชี Google ของผู้พัฒนา (จิรภัทร จิรมณฑล) |
 | ฐานข้อมูล | Google Sheet ในบัญชีเดียวกับ Backend |
 | Gemini API Key | ของผู้พัฒนา (ตั้งไว้ใน Script Properties ชื่อ `GEMINI_API_KEY`) |
@@ -33,7 +34,7 @@
 ## อัปเดตโค้ด
 
 - **แก้ Backend (`apps-script/*.gs`):** วางโค้ดใหม่ใน Apps Script → **Deploy › Manage deployments** → เลือก deployment ที่ใช้อยู่ → ไอคอนดินสอ → **Version: New version** → **Deploy** (URL เดิมไม่เปลี่ยน)
-- **แก้หน้าเว็บ (`index.html`):** แก้แล้ว push ขึ้น repo นี้ GitHub Pages อัปเดตเองภายใน 1–2 นาที เปิดเว็บด้วย Ctrl+F5
+- **แก้หน้าเว็บ (`index.html`):** แก้ใน repo `test-data-simulator` แล้วคัดลอกไฟล์ไปที่ repo `itds-qa/itds-qa.github.io` push ทั้งสอง GitHub Pages อัปเดตเองภายใน 1–2 นาที เปิดเว็บด้วย Ctrl+F5
 - **ตรวจว่าใช้ Backend ตัวล่าสุด:** ใต้กล่องล็อกอินแสดง `Backend version` ต้องตรงกับค่า `BACKEND_VERSION` ใน `apps-script/Code.gs`
 - **เปลี่ยน Gemini API Key:** Apps Script → **Project Settings › Script Properties** → แก้ค่า `GEMINI_API_KEY` → Save (มีผลทันที ไม่ต้อง Deploy ใหม่)
 
@@ -46,7 +47,7 @@
 **วิธีแก้ (ประมาณ 5 นาที):**
 1. Apps Script → **Deploy › New deployment** → Web app → Execute as: **Me** / Who has access: **Anyone** → Deploy
 2. ทดสอบ URL ใหม่ในหน้าต่าง Incognito โดยต่อท้าย `?action=ping` ต้องได้ข้อความที่มี `"pong"`
-3. แก้ `BACKEND_URL` ใน `index.html` ของ repo นี้เป็น URL ใหม่ แล้ว push
+3. แก้ `BACKEND_URL` ใน `index.html` เป็น URL ใหม่ ทั้งใน `test-data-simulator` และ `itds-qa.github.io` แล้ว push ทั้งสอง
 4. **Deploy › Manage deployments** → เก็บถาวร (Archive) deployment ตัวเก่า
 
 **ป้องกัน:** ให้บัญชีระบบมีเบอร์โทรยืนยันตัวตนเสมอ อย่าแจกลิงก์หน้าเว็บในที่สาธารณะ และถ้าโดนซ้ำ ควรย้ายไปติดตั้งด้วยบัญชี Google Workspace ของบริษัท เพราะการโดนหลายครั้งอาจทำให้ทั้งบัญชีถูกระงับ
