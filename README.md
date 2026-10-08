@@ -69,6 +69,8 @@ Built during a cooperative education internship (Jun–Oct 2026) at an insurance
 ├── templates/
 │   └── RuleTemplates_Insurance.xlsx   # Sample rule templates
 └── docs/
+    ├── USER_GUIDE.md          # User manual for every page (Thai)
+    ├── HANDOVER.md            # Handover notes: system status, maintenance, migration (Thai)
     ├── DEPLOY_GUIDE.md        # Setup & deployment guide (Thai)
     ├── PRIVACY_POLICY.md
     ├── DEVELOPMENT_LOG.md
