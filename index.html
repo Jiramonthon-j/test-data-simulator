@@ -1109,8 +1109,8 @@
                             <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-3px] mr-1.5"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1z"/><path d="M8 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2"/><path d="M9 12h6M9 16h6"/></svg>วาง Script โครงสร้างข้อมูล (CREATE TABLE...)</h3>
                             <textarea id="inputStructureScript" rows="6" placeholder="รองรับ 2 รูปแบบ&#10;1) SQL ปกติ: CREATE TABLE users (id INT, name VARCHAR(50));&#10;2) คัดลอกจากผล Query ใน DBeaver: บรรทัดแรก CREATE TABLE ชื่อตาราง แล้วตามด้วยบรรทัดละ 1 คอลัมน์ (column_name, data_type, character_maximum_length, is_nullable)" class="w-full text-sm border border-slate-200 dark:border-slate-600 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"></textarea>
                             <div style="height:18px;"></div>
-                            <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-3px] mr-1.5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>ข้อกำหนดเพิ่มเติม (Prompt Addition)</h3>
-                            <textarea id="inputPrompt" rows="4" placeholder="เช่น กำหนดให้ค่าคอมมิชชันแรกเข้าต้องมีมูลค่ามากกว่า 5,000 บาท" class="w-full text-sm border border-slate-200 dark:border-slate-600 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"></textarea>
+                            <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block align-[-3px] mr-1.5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>ข้อกำหนดเพิ่มเติม (Prompt Addition)<button type="button" id="btnInsertPromptTemplate" onclick="insertPromptTemplate_()" title="เติมแม่แบบ Prompt แล้วแก้เฉพาะส่วนในวงเล็บ [ ]" class="ml-auto text-xs font-medium px-2.5 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">ใส่แม่แบบ</button></h3>
+                            <textarea id="inputPrompt" rows="4" placeholder="เช่น กำหนดให้ค่าคอมมิชชันแรกเข้าต้องมีมูลค่ามากกว่า 5,000 บาท&#10;หรือกด &quot;ใส่แม่แบบ&quot; เพื่อเริ่มจากแม่แบบ แล้วแก้ส่วนในวงเล็บ [ ] (ใช้กับ Legacy Mode)" class="w-full text-sm border border-slate-200 dark:border-slate-600 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"></textarea>
                         </div>
 
                         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm p-6 border border-slate-100 dark:border-slate-700 space-y-3">
@@ -2121,6 +2121,26 @@
         }
 
         let confirmCallback = null;
+
+        // (feature) ปุ่ม "ใส่แม่แบบ" ของช่องข้อกำหนดเพิ่มเติม — เติมแม่แบบ Prompt ให้ผู้ใช้แก้ส่วนในวงเล็บ [ ] เอง
+        // จำนวนรายการไม่อยู่ในแม่แบบ เพราะกำหนดที่ช่อง "จำนวนแถวที่ต้องการ (Rows)" อยู่แล้ว
+        const PROMPT_ADDITION_TEMPLATE_ = "สร้างข้อมูล[ชื่อตาราง/ประเภทข้อมูล] ตามรูปแบบต่อไปนี้\n* [ชื่อคอลัมน์_1] อยู่ในรูปแบบ \"[รูปแบบข้อมูล]\" เช่น [ตัวอย่าง]\n* [ชื่อคอลัมน์_2] เป็น[ลักษณะข้อมูล/ความยาว] เช่น [ตัวอย่าง]\n* [ชื่อคอลัมน์_3] เป็น[ลักษณะข้อมูล] และ[เงื่อนไข เช่น ไม่ซ้ำกัน] เช่น [ตัวอย่าง]\n* [ชื่อคอลัมน์_4] มีค่าเป็น '[ค่าคงที่]' เสมอ\n* [ชื่อคอลัมน์_5] อยู่ระหว่าง [ค่าต่ำสุด] ถึง [ค่าสูงสุด] [หน่วย]\n* [ชื่อคอลัมน์อื่น ๆ] [เงื่อนไขการกระจายตัวของข้อมูล หรือขอบเขตค่า]\n* [กฎทั่วไปเกี่ยวกับตัวเลข/ฟอร์แมต เช่น ทศนิยม 3 ตำแหน่ง]\n* ตัวอย่างข้อมูลจริง 1 รายการ: ([รูปแบบ Output ที่อยากได้])";
+        function insertPromptTemplate_() {
+            const box = document.getElementById('inputPrompt');
+            const apply = function () {
+                box.value = PROMPT_ADDITION_TEMPLATE_;
+                box.focus();
+                const firstBracket = box.value.indexOf('[');
+                if (firstBracket !== -1) box.setSelectionRange(firstBracket, box.value.indexOf(']', firstBracket) + 1);
+            };
+            if (!box.value.trim()) { apply(); return; }
+            showCustomConfirm(
+                'แทนที่ด้วยแม่แบบ',
+                'ช่องข้อกำหนดเพิ่มเติมมีข้อความอยู่แล้ว ต้องการแทนที่ด้วยแม่แบบหรือไม่ (ข้อความเดิมจะหายไป)',
+                'RESET', 'bg-amber-500 hover:bg-amber-600',
+                function (confirmed) { if (confirmed) apply(); }
+            );
+        }
 
         function showCustomConfirm(title, message, icon, submitColorClass, callback) {
             document.getElementById('customConfirmTitle').innerText = title;
