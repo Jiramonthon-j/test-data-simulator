@@ -59,7 +59,7 @@ const MAX_ROWS_PER_GENERATE = 300;
 
 // ตัวเลขเวอร์ชันไว้เช็คว่า deployment ที่รันอยู่จริงเป็นโค้ดล่าสุดหรือไม่
 // วิธีเช็ค: เปิด <BACKEND_URL>?action=ping ในเบราว์เซอร์ตรงๆ แล้วดูค่า "version" ในผลลัพธ์
-const BACKEND_VERSION = 'v78-ai-json-control-chars-2026-10-08';
+const BACKEND_VERSION = 'v79-ddl-nullability-2026-10-08';
 
 // Super_Admin "หลัก" ของระบบ — บัญชีที่ setupSheet() สร้างให้อัตโนมัติตอนติดตั้งครั้งแรก (ดู setupSheet())
 // ใช้เทียบแบบ normalizeUsername_() เสมอ (ไม่สนตัวพิมพ์เล็ก/ใหญ่) เพื่อ (1) กันไม่ให้บัญชีนี้ส่งคำขอลบบัญชีตัวเองได้
@@ -3329,7 +3329,7 @@ function handleGenerate_(p) {
     schemaConfig = getColumnSchemaFor_(p.dataType, p.tableName);
   }
   const allowNull = (p.allowNull === true || p.allowNull === 'true');
-  const formInputs = { rowsRequested: rowsRequested, allowNull: allowNull };
+  const formInputs = { rowsRequested: rowsRequested, allowNull: allowNull, ddlNullability: parseDdlNullability_(p.ddlScript) };
 
   // (feature) ทางเลือกคู่ขนาน "Rule-Based Mode" — หน้าเว็บส่ง p.useRuleCompiler=true มาถึงจะเข้าทางนี้เท่านั้น
   // ถ้าไม่ติ๊ก (ค่าเริ่มต้น) จะเข้า else ด้านล่างซึ่งเป็น path เดิมเป๊ะทุกบรรทัด ไม่ถูกแก้ไขเลยแม้แต่ตัวเดียว
@@ -3576,9 +3576,21 @@ function buildSmartPrompt_(p, schemaConfig, rowsRequested, allowNull) {
     parts.push(hint);
   }
 
-  parts.push(allowNull
-    ? 'อนุญาตให้บางฟิลด์มีค่าว่าง (null) ได้ตามความสมเหตุสมผลของข้อมูลจริง — ถ้าเงื่อนไขระบุสัดส่วนหรือจำนวนแถวที่ต้องเว้นว่างไว้ (เช่น "30-40% ของแถวให้เว้นว่าง") ให้ใส่ค่า null จริงในฟิลด์ JSON นั้นเป๊ะๆ ห้ามใส่ข้อความแทนค่าว่าง เช่น "N/A", "NONE", "NOCOUPON", "ไม่มี", "-" หรือคำอื่นใดที่สื่อความหมายว่าง เพราะ null กับ string ที่ไม่ว่างมีผลต่างกันทางเทคนิคเวลานำไป query จริง'
-    : 'ห้ามมีค่าว่าง (null หรือ empty string) ในทุกฟิลด์ของทุกแถวโดยเด็ดขาด');
+  const ddlNullability = parseDdlNullability_(p.ddlScript);
+  const notNullCols = Object.keys(ddlNullability).filter(function (c) { return ddlNullability[c] === false; });
+  const nullableCols = Object.keys(ddlNullability).filter(function (c) { return ddlNullability[c] === true; });
+  if (notNullCols.length || nullableCols.length) {
+    // (fix) DDL ระบุ NULL/NOT NULL รายคอลัมน์ไว้แล้ว — บอก AI ตาม DDL แทนการห้ามว่างทุกฟิลด์ ซึ่งขัดกับเงื่อนไขที่ให้บางคอลัมน์เป็น NULL
+    if (notNullCols.length) parts.push('คอลัมน์ต่อไปนี้ห้ามมีค่าว่าง (null หรือ empty string) โดยเด็ดขาด ตามที่ DDL กำหนด NOT NULL: ' + notNullCols.join(', '));
+    if (nullableCols.length) parts.push('คอลัมน์ต่อไปนี้มีค่าว่าง (null) ได้ตามที่ DDL กำหนด ใช้ null เมื่อเงื่อนไขเพิ่มเติมระบุให้เป็นค่าว่างหรือเมื่อสมเหตุสมผล: ' + nullableCols.join(', '));
+    parts.push(allowNull
+      ? 'คอลัมน์อื่นที่ DDL ไม่ได้ระบุ อนุญาตให้มีค่าว่างได้ตามความสมเหตุสมผลของข้อมูลจริง'
+      : 'คอลัมน์อื่นที่ DDL ไม่ได้ระบุ ห้ามมีค่าว่าง');
+  } else {
+    parts.push(allowNull
+      ? 'อนุญาตให้บางฟิลด์มีค่าว่าง (null) ได้ตามความสมเหตุสมผลของข้อมูลจริง — ถ้าเงื่อนไขระบุสัดส่วนหรือจำนวนแถวที่ต้องเว้นว่างไว้ (เช่น "30-40% ของแถวให้เว้นว่าง") ให้ใส่ค่า null จริงในฟิลด์ JSON นั้นเป๊ะๆ ห้ามใส่ข้อความแทนค่าว่าง เช่น "N/A", "NONE", "NOCOUPON", "ไม่มี", "-" หรือคำอื่นใดที่สื่อความหมายว่าง เพราะ null กับ string ที่ไม่ว่างมีผลต่างกันทางเทคนิคเวลานำไป query จริง'
+      : 'ห้ามมีค่าว่าง (null หรือ empty string) ในทุกฟิลด์ของทุกแถวโดยเด็ดขาด');
+  }
 
   if (p.promptAddition) {
     parts.push('เงื่อนไขเพิ่มเติมที่ต้องปฏิบัติตามอย่างเคร่งครัด: ' + p.promptAddition);
@@ -3874,7 +3886,16 @@ function callGeminiValidate_(rows, p) {
   parts.push('ตรวจสอบว่าข้อมูลตัวอย่างต่อไปนี้ (สุ่มมาบางส่วนจากทั้งหมด ' + rows.length + ' แถว) ตรงตามเงื่อนไขที่ตั้งไว้จริงหรือไม่:');
   parts.push('- ประเภทข้อมูล: ' + p.dataType);
   if (p.promptAddition) parts.push('- เงื่อนไขเพิ่มเติม: ' + p.promptAddition);
-  parts.push('- ' + (allowNull ? 'อนุญาตให้มีค่าว่างได้' : 'ห้ามมีค่าว่าง'));
+  const checkNullability = parseDdlNullability_(p.ddlScript);
+  const checkNotNull = Object.keys(checkNullability).filter(function (c) { return checkNullability[c] === false; });
+  const checkNullable = Object.keys(checkNullability).filter(function (c) { return checkNullability[c] === true; });
+  if (checkNotNull.length || checkNullable.length) {
+    if (checkNotNull.length) parts.push('- คอลัมน์ที่ห้ามว่าง (DDL กำหนด NOT NULL): ' + checkNotNull.join(', '));
+    if (checkNullable.length) parts.push('- คอลัมน์ที่ว่าง (null) ได้ตาม DDL: ' + checkNullable.join(', '));
+    parts.push('- คอลัมน์อื่น: ' + (allowNull ? 'อนุญาตให้มีค่าว่างได้' : 'ห้ามมีค่าว่าง'));
+  } else {
+    parts.push('- ' + (allowNull ? 'อนุญาตให้มีค่าว่างได้' : 'ห้ามมีค่าว่าง'));
+  }
   parts.push('ข้อมูลตัวอย่าง (JSON):\n' + JSON.stringify(sample));
   parts.push('ให้ตรวจสอบอย่างเข้มงวดเป็นพิเศษ 3 เรื่องนี้ ถ้าพบให้ pass = false และระบุรายละเอียดใน issues ชัดเจนว่าแถวไหน/ฟิลด์ไหนผิด:');
   parts.push('1) ถ้าเงื่อนไขระบุชุดค่าที่อนุญาตไว้ (เช่น "ต้องเป็นหนึ่งใน...") ค่าที่ใช้จริงต้องตรงตัวอักษรเป๊ะกับที่ระบุเท่านั้น ไม่ใช่แค่ความหมายใกล้เคียงหรือคำพ้องความหมาย (เช่น "จัดส่งแล้ว" ไม่เท่ากับ "จัดส่งสำเร็จ" ถือว่าไม่ผ่าน)');
@@ -4200,6 +4221,48 @@ function normalizeDdlScript_(raw) {
   }
 }
 
+// (feature) อ่านว่าคอลัมน์ไหน "ห้ามว่าง" / "ว่างได้" ตามที่ DDL ระบุไว้ — คืน { ชื่อคอลัมน์: false (ห้ามว่าง) | true (ว่างได้) }
+// คอลัมน์ที่มี NOT NULL หรือ PRIMARY KEY = false, ระบุ NULL ไว้ชัด = true, ไม่ระบุอะไร = ไม่ใส่ใน map (ให้ใช้สวิตช์ Allow Null แทน)
+// ใช้คู่กับ normalizeDdlScript_ ทำให้ is_nullable (YES/NO) จาก DBeaver มีผลต่อการตรวจโครงสร้างจริง
+function parseDdlNullability_(ddlScript) {
+  const map = {};
+  try {
+    const text = String(ddlScript || '');
+    const openIdx = text.indexOf('(');
+    const closeIdx = text.lastIndexOf(')');
+    if (openIdx === -1 || closeIdx === -1 || closeIdx <= openIdx) return map;
+    const inner = text.slice(openIdx + 1, closeIdx);
+    const parts = [];
+    let depth = 0, current = '';
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i];
+      if (ch === '(') depth++;
+      if (ch === ')') depth--;
+      if (ch === ',' && depth === 0) { parts.push(current); current = ''; } else { current += ch; }
+    }
+    if (current.trim()) parts.push(current);
+    const constraintKeywords = /^(PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|CHECK|CONSTRAINT|INDEX|KEY)\b/i;
+    parts.forEach(function (part) {
+      const trimmed = part.trim();
+      if (!trimmed) return;
+      const pk = trimmed.match(/^PRIMARY\s+KEY\s*\(([^)]*)\)/i); // PRIMARY KEY (a, b) แบบแยกบรรทัด
+      if (pk) {
+        pk[1].split(',').forEach(function (c) { const n = c.trim().replace(/^[`"\[]|[`"\]]$/g, ''); if (n) map[n] = false; });
+        return;
+      }
+      if (constraintKeywords.test(trimmed)) return;
+      const nameMatch = trimmed.match(/^[`"\[]?([^\s`"\]]+)[`"\]]?/);
+      if (!nameMatch || !nameMatch[1]) return;
+      const rest = trimmed.slice(nameMatch[0].length);
+      if (/\bNOT\s+NULL\b/i.test(rest) || /\bPRIMARY\s+KEY\b/i.test(rest)) map[nameMatch[1]] = false;
+      else if (/\bNULL\b/i.test(rest)) map[nameMatch[1]] = true;
+    });
+  } catch (e) {
+    return {};
+  }
+  return map;
+}
+
 // (fix) ดึงรายชื่อคอลัมน์จาก DDL Script ที่ผู้ใช้วางมา (CREATE TABLE ... (คอลัมน์1 TYPE, คอลัมน์2 TYPE, ...)) ด้วยโค้ดเอง
 // ใช้เป็น allowedColumns/requiredColumns ให้ reconcileColumns_ บังคับทับผลลัพธ์จาก AI อีกชั้น แทนที่จะพึ่งพาแค่คำสั่งใน prompt อย่างเดียว (ดู comment ที่จุดเรียกใช้ใน handleGenerate_)
 // แยกคอลัมน์ด้วย comma ที่ "ระดับบนสุด" เท่านั้น (นับความลึกวงเล็บไว้ กัน comma ที่อยู่ใน DECIMAL(10,2)/ENUM('a','b') หลุดมาตัดผิดจุด) แล้วตัดบรรทัดที่เป็น constraint ล้วนๆ ทิ้ง (ไม่ใช่นิยามคอลัมน์จริง)
@@ -4336,16 +4399,23 @@ function validateStructure_(rows, formInputs) {
   if (rows.length !== formInputs.rowsRequested) {
     errors.push('จำนวนแถวไม่ตรงตามที่ขอ (ขอ ' + formInputs.rowsRequested + ' ได้ ' + rows.length + ')');
   }
-  if (!formInputs.allowNull) {
-    rows.forEach(function (row, idx) {
-      Object.keys(row).forEach(function (k) {
-        const v = row[k];
-        if (v === null || v === undefined || v === '') {
-          errors.push('แถวที่ ' + (idx + 1) + ' คอลัมน์ ' + k + ' มีค่าว่างทั้งที่ไม่อนุญาต (Allow Null = false)');
+  // (fix) ถ้า DDL ระบุว่าคอลัมน์ไหนห้ามว่าง/ว่างได้ ใช้ตาม DDL ก่อน — คอลัมน์ที่ DDL ไม่ได้ระบุจึงใช้สวิตช์ Allow Null
+  const nullability = formInputs.ddlNullability || {};
+  rows.forEach(function (row, idx) {
+    Object.keys(row).forEach(function (k) {
+      const v = row[k];
+      if (!(v === null || v === undefined || v === '')) return;
+      if (Object.prototype.hasOwnProperty.call(nullability, k)) {
+        if (nullability[k] === false) {
+          errors.push('แถวที่ ' + (idx + 1) + ' คอลัมน์ ' + k + ' มีค่าว่างทั้งที่ DDL กำหนดเป็น NOT NULL');
         }
-      });
+        return;
+      }
+      if (!formInputs.allowNull) {
+        errors.push('แถวที่ ' + (idx + 1) + ' คอลัมน์ ' + k + ' มีค่าว่างทั้งที่ไม่อนุญาต (Allow Null = false)');
+      }
     });
-  }
+  });
   return errors;
 }
 
