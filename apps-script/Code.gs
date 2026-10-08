@@ -59,7 +59,7 @@ const MAX_ROWS_PER_GENERATE = 300;
 
 // ตัวเลขเวอร์ชันไว้เช็คว่า deployment ที่รันอยู่จริงเป็นโค้ดล่าสุดหรือไม่
 // วิธีเช็ค: เปิด <BACKEND_URL>?action=ping ในเบราว์เซอร์ตรงๆ แล้วดูค่า "version" ในผลลัพธ์
-const BACKEND_VERSION = 'v76-session-logout-fix-2026-10-02';
+const BACKEND_VERSION = 'v77-ddl-column-listing-2026-10-08';
 
 // Super_Admin "หลัก" ของระบบ — บัญชีที่ setupSheet() สร้างให้อัตโนมัติตอนติดตั้งครั้งแรก (ดู setupSheet())
 // ใช้เทียบแบบ normalizeUsername_() เสมอ (ไม่สนตัวพิมพ์เล็ก/ใหญ่) เพื่อ (1) กันไม่ให้บัญชีนี้ส่งคำขอลบบัญชีตัวเองได้
@@ -3309,6 +3309,8 @@ function handleGenerate_(p) {
   // ผลคือ DDL Script ที่ผู้ใช้แปะไว้ในฟอร์ม "ไม่เคยไปถึง AI หรือโค้ดตรวจสอบเลย" ทั้งๆ ที่ผู้ใช้กรอกไว้ถูกต้องทุกครั้ง — เป็นสาเหตุจริงที่ทำให้ AI สร้างคอลัมน์เอาเองมาตลอด ไม่เกี่ยวกับการ Deploy เลย
   // แก้โดย normalize ตรงนี้จุดเดียว ให้ p.ddlScript รับค่าจาก structureScript ก่อน (คงชื่อ ddlScript ไว้เป็น fallback เผื่อมี caller เก่าที่ยังส่งชื่อนี้)
   p.ddlScript = String(p.structureScript || p.ddlScript || '').trim();
+  // (feature) รองรับโครงสร้างแบบรายการคอลัมน์ที่คัดลอกจากผล Query ใน DBeaver ด้วย — แปลงเป็น CREATE TABLE มาตรฐานก่อนใช้งานต่อ
+  p.ddlScript = normalizeDdlScript_(p.ddlScript);
 
   // ถ้าผู้ใช้วาง DDL Script มาเอง ถือว่า DDL คือแหล่งความจริงของคอลัมน์ (ยืดหยุ่นเต็มที่ตามที่ผู้ใช้ระบุ)
   // จะไม่ไปตัด/จำกัดคอลัมน์ตาม ColumnSchemaConfig ทับซ้อนกันโดยเด็ดขาด
@@ -4103,6 +4105,61 @@ function getColumnSchemaFor_(dataType, tableName) {
     allowedColumns: String(matchRow[idx.allowed] || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
     requiredColumns: String(matchRow[idx.required] || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean)
   };
+}
+
+// (feature) แปลงโครงสร้างตารางแบบ "รายการคอลัมน์" ที่คัดลอกมาจากผล Query ใน DBeaver
+// (column_name / data_type / character_maximum_length / is_nullable) ให้เป็น CREATE TABLE มาตรฐาน
+// เพื่อให้ทุกจุดที่ใช้ DDL ต่อ (parseDdlColumns_, Rule-Based Mode, prompt ของ AI) ทำงานได้เหมือนเดิมโดยไม่ต้องแก้
+// ตัวอย่างที่รองรับ:
+//   CREATE TABLE payment_ord_rider
+//   (id	bigint		NO
+//   period	character varying	10	YES
+// - คั่นแต่ละช่องด้วย Tab (ค่าจาก DBeaver) — ช่องความยาวที่เป็น Null จะเป็นช่องว่างระหว่าง Tab
+// - ถ้าไม่ใช่ Tab จะลองแยกด้วยช่องว่าง: คำสุดท้ายต้องเป็น YES/NO และตัวเลขก่อนหน้าคือความยาว (ไม่มีก็ได้)
+// - ถ้าเป็น CREATE TABLE แบบ SQL ปกติ (มี comma คั่นคอลัมน์) หรือแปลงไม่ได้ คืนค่าเดิมทุกตัวอักษร
+function normalizeDdlScript_(raw) {
+  const text = String(raw || '').replace(/\r\n?/g, '\n').trim();
+  if (!text) return text;
+  try {
+    const head = text.match(/^\s*CREATE\s+TABLE\s+([^\s(]+)\s*/i);
+    if (!head) return text;
+    const tableName = head[1];
+    let body = text.slice(head[0].length).trim();
+    if (body.charAt(0) === '(') body = body.slice(1);
+    body = body.replace(/\)\s*;?\s*$/, '');
+
+    const lines = body.split('\n').map(function (l) { return l.replace(/\s+$/, ''); }).filter(function (l) { return l.trim(); });
+    if (!lines.length) return text;
+    // SQL ปกติจะมี comma ท้ายบรรทัดคอลัมน์ — ถ้าเจอแบบนั้นถือว่าไม่ใช่รูปแบบรายการคอลัมน์
+    if (lines.some(function (l) { return /,\s*$/.test(l); })) return text;
+
+    const cols = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].replace(/^\s*\(/, '').trim();
+      if (/^column_name\b/i.test(line)) continue; // แถวหัวตารางที่ติดมาตอนคัดลอก
+      let name, type, len, nullable;
+      if (line.indexOf('\t') !== -1) {
+        const parts = line.split('\t').map(function (x) { return x.trim(); });
+        name = parts[0];
+        type = parts[1] || '';
+        // ช่องสุดท้ายที่มีค่า = is_nullable, ช่องที่ 3 = ความยาว (อาจว่าง)
+        nullable = parts[parts.length - 1];
+        len = parts.length >= 4 ? parts[2] : '';
+      } else {
+        const m = line.match(/^(\S+)\s+(.+?)(?:\s+(\d+))?\s+(YES|NO)$/i);
+        if (!m) return text;
+        name = m[1]; type = m[2]; len = m[3] || ''; nullable = m[4];
+      }
+      if (/^column_name$/i.test(name || '')) continue; // แถวหัวตารางที่ติดมาตอนคัดลอก
+      if (!name || !type || !/^(YES|NO)$/i.test(nullable || '')) return text;
+      if (len && !/^\d+$/.test(len)) len = '';
+      cols.push('  ' + name + ' ' + type + (len ? '(' + len + ')' : '') + (/^NO$/i.test(nullable) ? ' NOT NULL' : ' NULL'));
+    }
+    if (!cols.length) return text;
+    return 'CREATE TABLE ' + tableName + ' (\n' + cols.join(',\n') + '\n);';
+  } catch (e) {
+    return text;
+  }
 }
 
 // (fix) ดึงรายชื่อคอลัมน์จาก DDL Script ที่ผู้ใช้วางมา (CREATE TABLE ... (คอลัมน์1 TYPE, คอลัมน์2 TYPE, ...)) ด้วยโค้ดเอง
