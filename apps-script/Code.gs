@@ -59,7 +59,7 @@ const MAX_ROWS_PER_GENERATE = 300;
 
 // ตัวเลขเวอร์ชันไว้เช็คว่า deployment ที่รันอยู่จริงเป็นโค้ดล่าสุดหรือไม่
 // วิธีเช็ค: เปิด <BACKEND_URL>?action=ping ในเบราว์เซอร์ตรงๆ แล้วดูค่า "version" ในผลลัพธ์
-const BACKEND_VERSION = 'v77-ddl-column-listing-2026-10-08';
+const BACKEND_VERSION = 'v78-ai-json-control-chars-2026-10-08';
 
 // Super_Admin "หลัก" ของระบบ — บัญชีที่ setupSheet() สร้างให้อัตโนมัติตอนติดตั้งครั้งแรก (ดู setupSheet())
 // ใช้เทียบแบบ normalizeUsername_() เสมอ (ไม่สนตัวพิมพ์เล็ก/ใหญ่) เพื่อ (1) กันไม่ให้บัญชีนี้ส่งคำขอลบบัญชีตัวเองได้
@@ -3899,7 +3899,7 @@ function callGeminiValidate_(rows, p) {
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
     if (firstBrace === -1 || lastBrace === -1) throw new Error('ไม่พบ JSON ในคำตอบตรวจสอบของ AI');
-    const parsed = JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
+    const parsed = parseJsonLenient_(cleaned.substring(firstBrace, lastBrace + 1));
     return {
       pass: !!parsed.pass,
       issues: parsed.issues || [],
@@ -4049,13 +4049,51 @@ function logQualityScore_(p, rowsActual, conditionMatchPercent, reliabilityPerce
   }
 }
 
+// (fix) AI บางครั้งใส่ตัวอักษรควบคุม (ขึ้นบรรทัดใหม่ / Tab) ดิบ ๆ ไว้ใน string ของ JSON ซึ่งผิดมาตรฐาน
+// ทำให้ JSON.parse error "Bad control character in string literal" — ลอง parse ตรง ๆ ก่อน ถ้าไม่ผ่านจึง escape
+// เฉพาะตัวอักษรควบคุมที่อยู่ "ภายใน" string (นอก string ปล่อยไว้ตามเดิม เพราะเป็นช่องว่างที่ JSON อนุญาต) แล้ว parse ใหม่
+function parseJsonLenient_(jsonStr) {
+  try {
+    return JSON.parse(jsonStr);
+  } catch (firstErr) {
+    let out = '';
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < jsonStr.length; i++) {
+      const ch = jsonStr[i];
+      if (inString) {
+        if (escaped) { out += ch; escaped = false; continue; }
+        if (ch === '\\') { out += ch; escaped = true; continue; }
+        if (ch === '"') { out += ch; inString = false; continue; }
+        const code = ch.charCodeAt(0);
+        if (code < 0x20) {
+          if (ch === '\n') out += '\\n';
+          else if (ch === '\r') out += '\\r';
+          else if (ch === '\t') out += '\\t';
+          else out += '\\u' + ('0000' + code.toString(16)).slice(-4);
+          continue;
+        }
+        out += ch;
+      } else {
+        if (ch === '"') inString = true;
+        out += ch;
+      }
+    }
+    try {
+      return JSON.parse(out);
+    } catch (secondErr) {
+      throw firstErr;
+    }
+  }
+}
+
 function extractJsonFromAiText_(text) {
   let cleaned = String(text).trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
   const firstBrace = cleaned.indexOf('{');
   const lastBrace = cleaned.lastIndexOf('}');
   if (firstBrace === -1 || lastBrace === -1) throw new Error('ไม่พบ JSON ในคำตอบของ AI');
   const jsonStr = cleaned.substring(firstBrace, lastBrace + 1);
-  const parsed = JSON.parse(jsonStr);
+  const parsed = parseJsonLenient_(jsonStr);
   if (!parsed.rows || !Array.isArray(parsed.rows)) throw new Error('รูปแบบ JSON ที่ AI ตอบกลับไม่มี key "rows" เป็น array');
   return parsed;
 }
