@@ -59,7 +59,7 @@ const MAX_ROWS_PER_GENERATE = 300;
 
 // ตัวเลขเวอร์ชันไว้เช็คว่า deployment ที่รันอยู่จริงเป็นโค้ดล่าสุดหรือไม่
 // วิธีเช็ค: เปิด <BACKEND_URL>?action=ping ในเบราว์เซอร์ตรงๆ แล้วดูค่า "version" ในผลลัพธ์
-const BACKEND_VERSION = 'v80-allow-null-switch-priority-2026-10-08';
+const BACKEND_VERSION = 'v81-strip-newlines-in-values-2026-10-08';
 
 // Super_Admin "หลัก" ของระบบ — บัญชีที่ setupSheet() สร้างให้อัตโนมัติตอนติดตั้งครั้งแรก (ดู setupSheet())
 // ใช้เทียบแบบ normalizeUsername_() เสมอ (ไม่สนตัวพิมพ์เล็ก/ใหญ่) เพื่อ (1) กันไม่ให้บัญชีนี้ส่งคำขอลบบัญชีตัวเองได้
@@ -4114,6 +4114,17 @@ function extractJsonFromAiText_(text) {
   const jsonStr = cleaned.substring(firstBrace, lastBrace + 1);
   const parsed = parseJsonLenient_(jsonStr);
   if (!parsed.rows || !Array.isArray(parsed.rows)) throw new Error('รูปแบบ JSON ที่ AI ตอบกลับไม่มี key "rows" เป็น array');
+  // (fix) AI บางครั้งแทรกการขึ้นบรรทัดใหม่/Tab ไว้กลางค่าข้อมูล (เช่น '+07\n00' ในวันที่) — ข้อมูลทดสอบแทบไม่มีกรณีที่ต้องการ
+  // ขึ้นบรรทัดใหม่ในค่า จึงลบการขึ้นบรรทัดใหม่ทิ้ง และเปลี่ยน Tab เป็นช่องว่าง ในทุกค่าที่เป็นข้อความ
+  parsed.rows = parsed.rows.map(function (row) {
+    if (!row || typeof row !== 'object') return row;
+    const clean = {};
+    Object.keys(row).forEach(function (k) {
+      const v = row[k];
+      clean[k] = (typeof v === 'string') ? v.replace(/[\r\n]+/g, '').replace(/\t/g, ' ') : v;
+    });
+    return clean;
+  });
   return parsed;
 }
 
