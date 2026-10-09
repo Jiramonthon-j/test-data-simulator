@@ -59,7 +59,7 @@ const MAX_ROWS_PER_GENERATE = 300;
 
 // ตัวเลขเวอร์ชันไว้เช็คว่า deployment ที่รันอยู่จริงเป็นโค้ดล่าสุดหรือไม่
 // วิธีเช็ค: เปิด <BACKEND_URL>?action=ping ในเบราว์เซอร์ตรงๆ แล้วดูค่า "version" ในผลลัพธ์
-const BACKEND_VERSION = 'v81-strip-newlines-in-values-2026-10-08';
+const BACKEND_VERSION = 'v82-keep-committed-values-as-text-2026-10-09';
 
 // Super_Admin "หลัก" ของระบบ — บัญชีที่ setupSheet() สร้างให้อัตโนมัติตอนติดตั้งครั้งแรก (ดู setupSheet())
 // ใช้เทียบแบบ normalizeUsername_() เสมอ (ไม่สนตัวพิมพ์เล็ก/ใหญ่) เพื่อ (1) กันไม่ให้บัญชีนี้ส่งคำขอลบบัญชีตัวเองได้
@@ -4536,7 +4536,10 @@ function handleCommit_(p) {
       return (v !== undefined && v !== null) ? v : '';
     });
   });
-  sh.getRange(dataStartRow, 1, rowsMatrix.length, columns.length).setValues(rowsMatrix);
+  // ตั้งรูปแบบเป็นข้อความ (@) ก่อนเขียน กัน Google Sheets แปลงค่าเองอัตโนมัติ เช่น "2569/10" กลายเป็นวันที่ หรือ "0012" เสียเลข 0 นำหน้า
+  const dataRange = sh.getRange(dataStartRow, 1, rowsMatrix.length, columns.length);
+  dataRange.setNumberFormat('@');
+  dataRange.setValues(rowsMatrix.map(function (r) { return r.map(function (v) { return (v === '' ? '' : String(v)); }); }));
   const dataEndRow = dataStartRow + rowsMatrix.length - 1;
 
   // จัดกลุ่ม: ยุบตั้งแต่แถวหัวคอลัมน์ถึงแถวข้อมูลแถวสุดท้าย (แถวป้ายชื่อด้านบนไม่ถูกยุบ ทำหน้าที่เป็นหัวเรื่องของกลุ่มเสมอ)
@@ -4585,7 +4588,10 @@ function parseGeneratedDatasetBatches_() {
   const lastCol = Math.max(sh.getLastColumn(), 1);
   if (lastRow < 2) return [];
 
-  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  const fullRange = sh.getRange(1, 1, lastRow, lastCol);
+  const values = fullRange.getValues();
+  // ข้อมูลรอบเก่าที่ Sheets เคยแปลงเป็นวันที่ไปแล้ว (เช่น "2569/10") ให้ใช้ค่าที่แสดงในชีตแทน ไม่ส่งเป็น Date (ซึ่งจะกลายเป็น 2569-09-30T17:00:00.000Z)
+  const displayValues = fullRange.getDisplayValues();
   const batches = [];
   let i = 1; // แถวแรก (index 0) เป็นคำอธิบาย placeholder ของทั้งชีต ไม่ใช่ข้อมูลรอบ commit
 
@@ -4604,7 +4610,10 @@ function parseGeneratedDatasetBatches_() {
       while (i < values.length && String(values[i][0] || '').indexOf('📦') !== 0) {
         if (values[i].every(function (c) { return c === ''; })) { i++; continue; }
         const rowObj = {};
-        headerRow.forEach(function (h, idx) { rowObj[h] = values[i][idx]; });
+        headerRow.forEach(function (h, idx) {
+          const v = values[i][idx];
+          rowObj[h] = (v instanceof Date) ? displayValues[i][idx] : v;
+        });
         dataRows.push(rowObj);
         i++;
       }
