@@ -1,6 +1,6 @@
 # คู่มือการใช้งาน — Intelligent Test Data Simulator (ITDS)
 
-หน้าเว็บ: **https://itds-qa.github.io/**
+หน้าเว็บ: **https://jiramonthon-j.github.io/test-data-simulator/**
 
 ITDS ใช้สร้าง "ข้อมูลทดสอบ" (mock data) สำหรับงาน QA จากโครงสร้างตาราง (`CREATE TABLE`) โดยไม่ต้องใช้ข้อมูลจริงจากระบบ production ผลลัพธ์ที่ได้คือตารางข้อมูลที่ตรวจคุณภาพแล้ว และสคริปต์ SQL `INSERT` ที่นำไปรันในฐานข้อมูลทดสอบได้ทันที
 

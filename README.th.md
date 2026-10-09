@@ -70,7 +70,6 @@
 │   └── RuleTemplates_Insurance.xlsx   # ตัวอย่างกฎ
 └── docs/
     ├── USER_GUIDE.md          # คู่มือการใช้งานทุกหน้า
-    ├── HANDOVER.md            # เอกสารส่งมอบ: สถานะระบบ การดูแล และการย้ายระบบ
     ├── DEPLOY_GUIDE.md        # คู่มือติดตั้งและ Deploy
     ├── PRIVACY_POLICY.md
     ├── DEVELOPMENT_LOG.md
